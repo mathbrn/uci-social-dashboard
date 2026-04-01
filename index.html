@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UCI Social Media Dashboard — 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0f172a;--bgc:#1e293b;--bg2:#162032;--tx:#e2e8f0;--txm:#64748b;--bd:#334155;--ac:#6366f1;--acH:#818cf8}
+body.light{--bg:#fff;--bgc:#f8fafc;--bg2:#f1f5f9;--tx:#1e293b;--txm:#94a3b8;--bd:#e2e8f0;--ac:#6366f1;--acH:#4f46e5}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--tx);transition:background .3s,color .3s}
+button{font-family:inherit;cursor:pointer;transition:all .15s;outline:none}
+.btn{padding:6px 14px;font-size:12px;font-weight:500;border:1px solid var(--bd);border-radius:6px;background:transparent;color:var(--tx)}
+.btn:hover{border-color:var(--acH)}.btn.on{border-color:var(--ac);background:var(--ac);color:#fff;font-weight:700}
+.btn-sm{padding:4px 10px;font-size:11px}.btn-xs{padding:3px 8px;font-size:10px}
+.hdr{padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bd);flex-wrap:wrap;gap:10px}
+.logo{font-size:20px;font-weight:800;letter-spacing:-.5px}.logo b{color:var(--ac)}
+.yr{font-size:10px;font-weight:700;padding:2px 10px;border-radius:4px;background:var(--bgc);color:var(--txm);letter-spacing:1px;margin-left:10px}
+.ctrls{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.status-bar{padding:5px 24px;font-size:10px;background:var(--bgc)}
+.tabs{padding:0 24px;border-bottom:1px solid var(--bd);display:flex}
+.tab{padding:10px 20px;font-size:13px;font-weight:500;background:transparent;border:none;color:var(--txm);border-bottom:2px solid transparent}
+.tab:hover{color:var(--tx)}.tab.on{color:var(--tx);font-weight:700;border-bottom-color:var(--ac)}
+.bar{padding:12px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.content{padding:0 24px 24px}
+.tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--bd)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead tr{background:var(--bgc)}
+th{padding:10px;font-size:10px;font-weight:700;color:var(--txm);text-transform:uppercase;letter-spacing:.5px}
+th:first-child{text-align:left;position:sticky;left:0;background:var(--bgc);z-index:2;min-width:270px}
+th:not(:first-child){text-align:right}
+td{padding:8px 10px;text-align:right;font-variant-numeric:tabular-nums;border-bottom:1px solid var(--bd)}
+td:first-child{position:sticky;left:0;background:var(--bg);z-index:1;text-align:left}
+tbody tr:hover td{background:var(--bg2)}
+.ent{display:flex;align-items:center;gap:6px}
+.rank{font-size:10px;color:var(--txm);width:20px;text-align:right;font-weight:600}
+.cbar{width:4px;height:22px;border-radius:2px;flex-shrink:0}
+.flag{font-size:14px}.ename{font-weight:600;font-size:11.5px;white-space:nowrap}
+.badge{display:inline-block;font-size:8px;font-weight:700;padding:2px 6px;border-radius:3px;color:#fff;margin-left:5px;text-transform:uppercase}
+.empty{color:var(--txm)}
+.chart-box{background:var(--bgc);border-radius:10px;border:1px solid var(--bd);padding:20px}
+.chart-title{font-size:14px;font-weight:700;margin-bottom:16px}
+.chart-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.chart-name{font-size:10px;width:170px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.chart-track{flex:1;height:24px;background:var(--bg);border-radius:5px;overflow:hidden}
+.chart-fill{height:100%;border-radius:5px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;transition:width .6s ease}
+.chart-val{font-size:9px;font-weight:700;color:#fff}
+.chart-val-out{font-size:9px;color:var(--txm);font-weight:600}
+.legend{margin-top:14px;padding:12px 16px;border-radius:10px;border:1px solid var(--bd);background:var(--bgc);font-size:10px;color:var(--txm);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.leg-i{display:flex;align-items:center;gap:4px}
+.leg-d{width:10px;height:10px;border-radius:2px;display:inline-block}
+.import-zone{border:2px dashed var(--bd);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:16px}
+.import-zone:hover{border-color:var(--ac);background:var(--bg2)}
+.import-zone.over{border-color:var(--ac);background:rgba(99,102,241,.1)}
+#fileInput{display:none}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ═══════════════════════════════════════
+   UCI WorldTour Social Dashboard 2026
+   Vanilla JS — Import JSON from collector
+   ═══════════════════════════════════════ */
+// SVG mini flags (10x7) — works on all platforms including Windows Chrome
+function svgFlag(co){
+  const flags={
+    FRA:`<svg width="16" height="11" viewBox="0 0 16 11"><rect width="5.3" height="11" fill="#002395"/><rect x="5.3" width="5.4" height="11" fill="#fff"/><rect x="10.7" width="5.3" height="11" fill="#ED2939"/></svg>`,
+    ITA:`<svg width="16" height="11" viewBox="0 0 16 11"><rect width="5.3" height="11" fill="#009246"/><rect x="5.3" width="5.4" height="11" fill="#fff"/><rect x="10.7" width="5.3" height="11" fill="#CE2B37"/></svg>`,
+    BEL:`<svg width="16" height="11" viewBox="0 0 16 11"><rect width="5.3" height="11" fill="#000"/><rect x="5.3" width="5.4" height="11" fill="#FAE042"/><rect x="10.7" width="5.3" height="11" fill="#ED2939"/></svg>`,
+    ESP:`<svg width="16" height="11" viewBox="0 0 16 11"><rect width="16" height="11" fill="#c60b1e"/><rect y="2.75" width="16" height="5.5" fill="#ffc400"/></svg>`,
+    NED:`<svg width="16" height="11" viewBox="0 0 16 11"><rect width="16" height="3.67" fill="#AE1C28"/><rect y="3.67" width="16" height="3.66" fill="#fff"/><rect y="7.33" width="16" height="3.67" fill="#21468B"/></svg>`,
+    SUI:`<svg width="16" height="11" viewBox="0 0 16 11"><rect width="16" height="11" fill="#D52B1E" rx="1"/><rect x="7" y="2" width="2" height="7" fill="#fff"/><rect x="4.5" y="4" width="7" height="2" fill="#fff"/></svg>`,
+    GER:`<svg width="16" height="11" viewBox="0 0 16 11"><rect width="16" height="3.67" fill="#000"/><rect y="3.67" width="16" height="3.66" fill="#DD0000"/><rect y="7.33" width="16" height="3.67" fill="#FFCE00"/></svg>`,
+    DEN:`<svg width="16" height="11" viewBox="0 0 16 11"><rect width="16" height="11" fill="#C60C30"/><rect x="4.5" width="2" height="11" fill="#fff"/><rect y="4.5" width="16" height="2" fill="#fff"/></svg>`,
+    POL:`<svg width="16" height="11" viewBox="0 0 16 11"><rect width="16" height="5.5" fill="#fff"/><rect y="5.5" width="16" height="5.5" fill="#DC143C"/></svg>`,
+    CAN:`<svg width="16" height="11" viewBox="0 0 16 11"><rect width="4" height="11" fill="#FF0000"/><rect x="4" width="8" height="11" fill="#fff"/><rect x="12" width="4" height="11" fill="#FF0000"/><path d="M8 2.5L8.5 4.5 7 3.5h2L7.5 4.5z" fill="#FF0000"/></svg>`,
+    CHN:`<svg width="16" height="11" viewBox="0 0 16 11"><rect width="16" height="11" fill="#DE2910"/><polygon points="3,1.5 3.5,3 2,2 4,2 2.5,3" fill="#FFDE00"/></svg>`,
+    GBR:`<svg width="16" height="11" viewBox="0 0 16 11"><rect width="16" height="11" fill="#012169"/><path d="M0,0L16,11M16,0L0,11" stroke="#fff" stroke-width="2"/><path d="M0,0L16,11M16,0L0,11" stroke="#C8102E" stroke-width="1"/><rect x="6.5" width="3" height="11" fill="#fff"/><rect y="4" width="16" height="3" fill="#fff"/><rect x="7" width="2" height="11" fill="#C8102E"/><rect y="4.5" width="16" height="2" fill="#C8102E"/></svg>`,
+    AUS:`<svg width="16" height="11" viewBox="0 0 16 11"><rect width="16" height="11" fill="#012169"/><rect x="0" y="0" width="8" height="5.5" fill="#012169"/><path d="M0,0L8,5.5M8,0L0,5.5" stroke="#fff" stroke-width="1"/><path d="M0,0L8,5.5M8,0L0,5.5" stroke="#C8102E" stroke-width=".5"/><rect x="3" width="2" height="5.5" fill="#fff"/><rect y="2" width="8" height="1.5" fill="#fff"/><rect x="3.25" width="1.5" height="5.5" fill="#C8102E"/><rect y="2.25" width="8" height="1" fill="#C8102E"/><polygon points="12,8 12.3,9 11.3,8.4 12.7,8.4 11.7,9" fill="#fff" transform="scale(.7) translate(5,2)"/></svg>`,
+    UAE:`<svg width="16" height="11" viewBox="0 0 16 11"><rect x="3" width="13" height="3.67" fill="#00732F"/><rect x="3" y="3.67" width="13" height="3.66" fill="#fff"/><rect x="3" y="7.33" width="13" height="3.67" fill="#000"/><rect width="3" height="11" fill="#FF0000"/></svg>`,
+    Belgique:`<svg width="16" height="11" viewBox="0 0 16 11"><rect width="5.3" height="11" fill="#000"/><rect x="5.3" width="5.4" height="11" fill="#FAE042"/><rect x="10.7" width="5.3" height="11" fill="#ED2939"/></svg>`,
+    Bahreïn:`<svg width="16" height="11" viewBox="0 0 16 11"><rect width="4" height="11" fill="#fff"/><polygon points="4,0 7,1.1 4,2.2 7,3.3 4,4.4 7,5.5 4,6.6 7,7.7 4,8.8 7,9.9 4,11 16,11 16,0" fill="#CE1126"/></svg>`,
+    France:`<svg width="16" height="11" viewBox="0 0 16 11"><rect width="5.3" height="11" fill="#002395"/><rect x="5.3" width="5.4" height="11" fill="#fff"/><rect x="10.7" width="5.3" height="11" fill="#ED2939"/></svg>`,
+    "États-Unis":`<svg width="16" height="11" viewBox="0 0 16 11"><rect width="16" height="11" fill="#B22234"/><rect y="1.57" width="16" height=".85" fill="#fff"/><rect y="3.28" width="16" height=".85" fill="#fff"/><rect y="5" width="16" height=".85" fill="#fff"/><rect y="6.71" width="16" height=".85" fill="#fff"/><rect y="8.42" width="16" height=".85" fill="#fff"/><rect width="6.4" height="5.9" fill="#3C3B6E"/></svg>`,
+    "Royaume-Uni":`<svg width="16" height="11" viewBox="0 0 16 11"><rect width="16" height="11" fill="#012169"/><path d="M0,0L16,11M16,0L0,11" stroke="#fff" stroke-width="2"/><path d="M0,0L16,11M16,0L0,11" stroke="#C8102E" stroke-width="1"/><rect x="6.5" width="3" height="11" fill="#fff"/><rect y="4" width="16" height="3" fill="#fff"/><rect x="7" width="2" height="11" fill="#C8102E"/><rect y="4.5" width="16" height="2" fill="#C8102E"/></svg>`,
+    Allemagne:`<svg width="16" height="11" viewBox="0 0 16 11"><rect width="16" height="3.67" fill="#000"/><rect y="3.67" width="16" height="3.66" fill="#DD0000"/><rect y="7.33" width="16" height="3.67" fill="#FFCE00"/></svg>`,
+    Espagne:`<svg width="16" height="11" viewBox="0 0 16 11"><rect width="16" height="11" fill="#c60b1e"/><rect y="2.75" width="16" height="5.5" fill="#ffc400"/></svg>`,
+    Suisse:`<svg width="16" height="11" viewBox="0 0 16 11"><rect width="16" height="11" fill="#D52B1E" rx="1"/><rect x="7" y="2" width="2" height="7" fill="#fff"/><rect x="4.5" y="4" width="7" height="2" fill="#fff"/></svg>`,
+    "Pays-Bas":`<svg width="16" height="11" viewBox="0 0 16 11"><rect width="16" height="3.67" fill="#AE1C28"/><rect y="3.67" width="16" height="3.66" fill="#fff"/><rect y="7.33" width="16" height="3.67" fill="#21468B"/></svg>`,
+    "Émirats arabes unis":`<svg width="16" height="11" viewBox="0 0 16 11"><rect x="3" width="13" height="3.67" fill="#00732F"/><rect x="3" y="3.67" width="13" height="3.66" fill="#fff"/><rect x="3" y="7.33" width="13" height="3.67" fill="#000"/><rect width="3" height="11" fill="#FF0000"/></svg>`,
+    Norvège:`<svg width="16" height="11" viewBox="0 0 16 11"><rect width="16" height="11" fill="#EF2B2D"/><rect x="4.5" width="3" height="11" fill="#fff"/><rect y="4" width="16" height="3" fill="#fff"/><rect x="5" width="2" height="11" fill="#002868"/><rect y="4.5" width="16" height="2" fill="#002868"/></svg>`,
+    Kazakhstan:`<svg width="16" height="11" viewBox="0 0 16 11"><rect width="16" height="11" fill="#00AFCA"/><circle cx="8" cy="5.5" r="2.5" fill="#FEC50C"/><rect x="1" y="1" width="1.5" height="9" fill="#FEC50C" opacity=".3"/></svg>`,
+    Australie:`<svg width="16" height="11" viewBox="0 0 16 11"><rect width="16" height="11" fill="#012169"/><rect x="0" y="0" width="8" height="5.5" fill="#012169"/><path d="M0,0L8,5.5M8,0L0,5.5" stroke="#fff" stroke-width="1"/><rect x="3" width="2" height="5.5" fill="#fff"/><rect y="2" width="8" height="1.5" fill="#fff"/><rect x="3.25" width="1.5" height="5.5" fill="#C8102E"/><rect y="2.25" width="8" height="1" fill="#C8102E"/></svg>`,
+  };
+  return flags[co]||`<span style="font-size:10px;color:var(--txm)">${co}</span>`;
+}
+const FL=null; // deprecated, using svgFlag() instead
+const TCM={"Alpecin-Premier Tech":"#1a3a6b","Bahrain Victorious":"#cc0000","Decathlon CMA CGM":"#004aad","EF Education-Easy Post":"#ff6ec7","Groupama-FDJ United":"#0055a4","Ineos Grenadiers":"#8b0000","Lidl-Trek":"#e30613","Lotto Intermarché":"#d32f2f","Movistar":"#00205b","NSN":"#1b365d","Red Bull-Bora-Hansgrohe":"#1e2a5a","Soudal Quick-Step":"#003b73","Team Jayco AlUla":"#2d6a4f","Team Picnic PostNL":"#ff6d00","Team Visma-Lease a Bike":"#ffd700","UAE Emirates XRG":"#c41e3a","Uno-X Mobility":"#ff8c00","XDS-Astana":"#00a3e0"};
+const TCW={"AG Insurance-Soudal Team":"#1e3a5f","Canyon//SRAM zondacrypto":"#ff4081","EF Education-Oatly":"#ff6ec7","FDJ United-Suez":"#0055a4","Fenix-Premier Tech":"#1a3a6b","Human Powered Health":"#e64a19","Lidl-Trek":"#e30613","Liv AlUla Jayco":"#2d6a4f","Movistar Team":"#00205b","Team Picnic PostNL":"#ff6d00","Team SD Worx-Protime":"#6a1b9a","Team Visma | Lease a Bike":"#ffd700","UAE Team ADQ":"#c41e3a","Uno-X Mobility":"#ff8c00"};
+
+function rcol(n,c){const l=n.toLowerCase();if(l.includes("tour de france"))return"#ffd700";if(l.includes("giro"))return"#ff69b4";if(l.includes("vuelta")&&(l.includes("españa")||l.includes("femenina")))return"#e53935";if(c&&c.startsWith("2."))return"#7c3aed";return"#22c55e"}
+function rbdg(n,c){const l=n.toLowerCase();if(["tour de france","giro d'italia","la vuelta ciclista a españa","tour de france femmes","giro d'italia women","vuelta españa femenina"].includes(l))return{l:"Grand Tour",c:"#f59e0b"};if(c&&c.startsWith("2."))return{l:"2.UWT",c:"#7c3aed"};return{l:"1.UWT",c:"#22c55e"}}
+
+const MOS=["Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"];
+const MKS=["apr","may","jun","jul","aug","sep","oct","nov","dec"];
+const SOCS=["Overall","Facebook","Instagram","X","TikTok"];
+
+const SOC_ICONS={
+  Facebook:'<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>',
+  Instagram:'<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>',
+  X:'<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>',
+  TikTok:'<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.11V9.01a6.29 6.29 0 00-.79-.05 6.33 6.33 0 00-6.33 6.33A6.33 6.33 0 009.49 21.6a6.33 6.33 0 006.33-6.33V8.72a8.2 8.2 0 004.77 1.52V6.79a4.84 4.84 0 01-1-.1z"/></svg>'
+};
+
+const TM=[{n:"Ineos Grenadiers",co:"Royaume-Uni",ig:"ineos_grenadiers"},{n:"Team Visma-Lease a Bike",co:"Pays-Bas",ig:"teamvisma_leaseabike"},{n:"UAE Emirates XRG",co:"Émirats arabes unis",ig:"uae_team_emirates"},{n:"Movistar",co:"Espagne",ig:"movistarteam"},{n:"Lidl-Trek",co:"Allemagne",ig:"lidl_trek"},{n:"Soudal Quick-Step",co:"Belgique",ig:"soudalquickstepteam"},{n:"Red Bull-Bora-Hansgrohe",co:"Allemagne",ig:"redbullborahansgrohe"},{n:"EF Education-Easy Post",co:"États-Unis",ig:"efprocycling"},{n:"Alpecin-Premier Tech",co:"Belgique",ig:"alpecin.premiertech"},{n:"Decathlon CMA CGM",co:"France",ig:"decathloncmacgmteam"},{n:"Groupama-FDJ United",co:"France",ig:"groupamafdj"},{n:"Bahrain Victorious",co:"Bahreïn",ig:"teambahrainvictorious"},{n:"Lotto Intermarché",co:"Belgique",ig:"lotto.cyclingteam"},{n:"Team Jayco AlUla",co:"Australie",ig:"greenedgecycling"},{n:"Uno-X Mobility",co:"Norvège",ig:"unoxteam"},{n:"NSN",co:"Suisse",ig:"nsncyclingteam"},{n:"Team Picnic PostNL",co:"Pays-Bas",ig:"teampicnicpostnl"},{n:"XDS-Astana",co:"Kazakhstan",ig:"xds_astana_team"}];
+const TW=[{n:"Team SD Worx-Protime",co:"Pays-Bas",ig:"sdworxprotime"},{n:"Canyon//SRAM zondacrypto",co:"Allemagne",ig:"canyonsramzondacrypto"},{n:"Lidl-Trek",co:"Allemagne",ig:"lidl_trek_women"},{n:"Team Visma | Lease a Bike",co:"Pays-Bas",ig:"teamvisma_leaseabike_women"},{n:"Movistar Team",co:"Espagne",ig:"movistarteamwomen"},{n:"FDJ United-Suez",co:"France",ig:"fdj.suez"},{n:"AG Insurance-Soudal Team",co:"Belgique",ig:"aginsurancesoudal"},{n:"UAE Team ADQ",co:"Émirats arabes unis",ig:"uaeteamadq"},{n:"Liv AlUla Jayco",co:"Australie",ig:"greenedgecycling"},{n:"EF Education-Oatly",co:"États-Unis",ig:"efeducationoatly"},{n:"Human Powered Health",co:"États-Unis",ig:"hphcycling"},{n:"Fenix-Premier Tech",co:"Belgique",ig:"fenix.premiertech"},{n:"Uno-X Mobility",co:"Norvège",ig:"unoxteam"},{n:"Team Picnic PostNL",co:"Pays-Bas",ig:"teampicnicpostnl"}];
+const RM=[{n:"Tour de France",co:"FRA",cl:"2.UWT",ig:"letourdefrance"},{n:"Giro d'Italia",co:"ITA",cl:"2.UWT",ig:"giroditalia"},{n:"La Vuelta Ciclista a España",co:"ESP",cl:"2.UWT",ig:"lavuelta"},{n:"Paris-Roubaix",co:"FRA",cl:"1.UWT",ig:"parisroubaixcourse"},{n:"Ronde van Vlaanderen",co:"BEL",cl:"1.UWT",ig:"rondevanvlaanderen"},{n:"Milano-Sanremo",co:"ITA",cl:"1.UWT",ig:"milanosanremo_"},{n:"Liège-Bastogne-Liège",co:"BEL",cl:"1.UWT",ig:"classiquesardennes"},{n:"Il Lombardia",co:"ITA",cl:"1.UWT",ig:"illombardia"},{n:"Strade Bianche",co:"ITA",cl:"1.UWT",ig:"strade_bianche"},{n:"Paris-Nice",co:"FRA",cl:"2.UWT",ig:"parisnicecourse"},{n:"Tirreno-Adriatico",co:"ITA",cl:"2.UWT",ig:"tirreno_adriatico"},{n:"Volta a Catalunya",co:"ESP",cl:"2.UWT",ig:"voltacatalunya"},{n:"Itzulia Basque Country",co:"ESP",cl:"2.UWT",ig:"ehitzulia"},{n:"Tour de Romandie",co:"SUI",cl:"2.UWT",ig:"tourderomandie"},{n:"Tour Auvergne-Rhône-Alpes",co:"FRA",cl:"2.UWT",ig:"criteriumdudauphine"},{n:"Tour de Suisse",co:"SUI",cl:"2.UWT",ig:"tourdesuisse_official"},{n:"Tour de Pologne",co:"POL",cl:"2.UWT",ig:"tourdepologne"},{n:"Renewi Tour",co:"BEL",cl:"2.UWT",ig:"renewitour"},{n:"Santos Tour Down Under",co:"AUS",cl:"2.UWT",ig:"tourdownunder"},{n:"UAE Tour",co:"UAE",cl:"2.UWT",ig:"theuaetourofficial"},{n:"Tour of Guangxi",co:"CHN",cl:"2.UWT",ig:"tourofguangxi"},{n:"Amstel Gold Race",co:"NED",cl:"1.UWT",ig:"amstelgoldrace"},{n:"La Flèche Wallonne",co:"BEL",cl:"1.UWT",ig:"classiquesardennes"},{n:"Eschborn-Frankfurt",co:"GER",cl:"1.UWT",ig:"eschbornfrankfurt"},{n:"Tour of Bruges",co:"BEL",cl:"1.UWT",ig:"bruggedepanne"},{n:"E3 Saxo Classic",co:"BEL",cl:"1.UWT",ig:"e3_saxoclassic"},{n:"In Flanders Fields",co:"BEL",cl:"1.UWT",ig:"inflandersfieldsrace"},{n:"Dwars door Vlaanderen",co:"BEL",cl:"1.UWT",ig:"dwarsdoorvlaanderenofficial"},{n:"Omloop Nieuwsblad",co:"BEL",cl:"1.UWT",ig:"omloophetnieuwsbladofficial"},{n:"Copenhagen Sprint",co:"DEN",cl:"1.UWT",ig:"cphsprint"},{n:"Clásica San Sebastián",co:"ESP",cl:"1.UWT",ig:"sansebastianklas"},{n:"Bretagne Classic",co:"FRA",cl:"1.UWT",ig:"grandprixplouay"},{n:"GP Cycliste de Québec",co:"CAN",cl:"1.UWT",ig:"grandsprixcyclistes"},{n:"GP Cycliste de Montréal",co:"CAN",cl:"1.UWT",ig:"grandsprixcyclistes"},{n:"Cadel Evans Road Race",co:"AUS",cl:"1.UWT",ig:"cadelroadrace"},{n:"ADAC Cyclassics",co:"GER",cl:"1.UWT",ig:"cyclassics"}];
+const RW=[{n:"Tour de France Femmes",co:"FRA",cl:"2.WWT",ig:"letourfemmes"},{n:"Giro d'Italia Women",co:"ITA",cl:"2.WWT",ig:"giroditaliawomen"},{n:"Vuelta España Femenina",co:"ESP",cl:"2.WWT",ig:"lavueltafem"},{n:"Ronde van Vlaanderen",co:"BEL",cl:"1.WWT",ig:"rondevanvlaanderen"},{n:"Paris-Roubaix Femmes",co:"FRA",cl:"1.WWT",ig:"parisroubaix_femmes"},{n:"Strade Bianche Donne",co:"ITA",cl:"1.WWT",ig:"strade_bianche"},{n:"Amstel Gold Race Ladies",co:"NED",cl:"1.WWT",ig:"amstelgoldrace"},{n:"La Flèche Wallonne Femmes",co:"BEL",cl:"1.WWT",ig:"classiquesardennes"},{n:"Liège-Bastogne-Liège Femmes",co:"BEL",cl:"1.WWT",ig:"classiquesardennes"},{n:"Santos Tour Down Under",co:"AUS",cl:"2.WWT",ig:"tourdownunder"},{n:"UAE Tour Women",co:"UAE",cl:"2.WWT",ig:"theuaetourofficial"},{n:"Itzulia Women",co:"ESP",cl:"2.WWT",ig:"ehitzulia"},{n:"Vuelta a Burgos Feminas",co:"ESP",cl:"2.WWT",ig:"vueltaburgos"},{n:"Tour de Suisse Women",co:"SUI",cl:"2.WWT",ig:"tourdesuisse_official"},{n:"Tour of Britain Women",co:"GBR",cl:"2.WWT",ig:"tourofbritain"},{n:"Tour de Romandie Féminin",co:"SUI",cl:"2.WWT",ig:"tourderomandie"},{n:"Tour of Chongming Island",co:"CHN",cl:"2.WWT",ig:"tourofchongming"},{n:"Omloop Nieuwsblad",co:"BEL",cl:"1.WWT",ig:"omloophetnieuwsbladofficial"},{n:"Trofeo Alfredo Binda",co:"ITA",cl:"1.WWT",ig:"trofeobinda"},{n:"Milano-Sanremo Donne",co:"ITA",cl:"1.WWT",ig:"milanosanremo_"},{n:"Tour of Bruges",co:"BEL",cl:"1.WWT",ig:"bruggedepanne"},{n:"In Flanders Fields",co:"BEL",cl:"1.WWT",ig:"inflandersfieldsrace"},{n:"Dwars door Vlaanderen",co:"BEL",cl:"1.WWT",ig:"dwarsdoorvlaanderenofficial"},{n:"Copenhagen Sprint",co:"DEN",cl:"1.WWT",ig:"cphsprint"},{n:"Classic Lorient Agglomération",co:"FRA",cl:"1.WWT",ig:"grandprixplouay"},{n:"Cadel Evans Road Race",co:"AUS",cl:"1.WWT",ig:"cadelroadrace"},{n:"Tour of Guangxi Women",co:"CHN",cl:"1.WWT",ig:"tourofguangxi"}];
+
+function fN(n){return n==null?"—":n.toLocaleString("fr-FR")}
+function gVal(md,s){
+  if(!md)return null;
+  if(s==="Overall"){const t=(md.ig||0)+(md.fb||0)+(md.x||0)+(md.tk||0);return t>0?t:null}
+  const mp={Instagram:"ig",Facebook:"fb",X:"x",TikTok:"tk"};
+  return md[mp[s]]||null;
+}
+
+// ═══ STATE ═══
+let S={dk:true,gen:"men",tab:"courses",soc:"Overall",vw:"table",fil:"all",dt:{},imports:[]};
+
+function loadFromLS(){try{const d=localStorage.getItem("uci-dash-v2");if(d)S.dt=JSON.parse(d)}catch{}}
+function saveToLS(){try{localStorage.setItem("uci-dash-v2",JSON.stringify(S.dt))}catch{}}
+
+function importJSON(json){
+  const mk=json.month;
+  if(!mk)return;
+  for(const[key,entry] of Object.entries(json.data)){
+    // Match by ig_username to dashboard entities
+    const ig=entry.ig_username;
+    const count=entry.ig_followers;
+    if(!ig||count==null)continue;
+    // Find all entities with this ig username
+    for(const list of[TM,TW,RM,RW]){
+      for(const e of list){
+        if(e.ig===ig){
+          const k=e.n+"|"+(e.cl||e.co);
+          if(!S.dt[k])S.dt[k]={};
+          if(!S.dt[k][mk])S.dt[k][mk]={};
+          S.dt[k][mk].ig=count;
+        }
+      }
+    }
+  }
+  S.imports.push(json.date+" ("+json.stats.success+" comptes)");
+  saveToLS();
+}
+
+function getItems(){
+  const src=S.tab==="courses"?(S.gen==="men"?RM:RW):(S.gen==="men"?TM:TW);
+  let ls=src.map(e=>({...e,_k:e.n+"|"+(e.cl||e.co),_m:S.dt[e.n+"|"+(e.cl||e.co)]||{}}));
+  if(S.tab==="courses"){
+    if(S.fil==="gt")ls=ls.filter(r=>rbdg(r.n,r.cl).l==="Grand Tour");
+    if(S.fil==="stage")ls=ls.filter(r=>r.cl&&r.cl.startsWith("2."));
+    if(S.fil==="oneday")ls=ls.filter(r=>r.cl&&r.cl.startsWith("1."));
+  }
+  ls.sort((a,b)=>{for(const mk of MKS){const va=gVal(a._m[mk],S.soc)||0,vb=gVal(b._m[mk],S.soc)||0;if(va||vb)return vb-va}return 0});
+  return ls;
+}
+
+function getCM(items){
+  if(S.tab==="equipes")return S.gen==="men"?TCM:TCW;
+  const m={};items.forEach(r=>m[r.n]=rcol(r.n,r.cl));return m;
+}
+
+// ═══ RENDER ═══
+function render(){
+  const items=getItems();const cM=getCM(items);
+  const hasData=Object.keys(S.dt).length>0;
+  const app=document.getElementById("app");
+
+  let h=`
+  <div class="hdr">
+    <div style="display:flex;align-items:center">
+      <span class="logo"><b>UCI</b> Social Media Dashboard</span><span class="yr">2026</span>
+    </div>
+    <div class="ctrls">
+      <button class="btn" onclick="document.getElementById('fileInput').click()" style="display:flex;align-items:center;gap:5px">
+        📁 Importer JSON
+      </button>
+      <input type="file" id="fileInput" accept=".json" onchange="handleFile(event)">
+      <div style="display:flex;border-radius:6px;overflow:hidden;border:1px solid var(--bd)">
+        <button class="btn${S.gen==="men"?" on":""}" onclick="setS('gen','men')" style="border-radius:6px 0 0 6px">♂ Hommes</button>
+        <button class="btn${S.gen==="women"?" on":""}" onclick="setS('gen','women')" style="border-radius:0 6px 6px 0">♀ Femmes</button>
+      </div>
+      <button class="btn" onclick="toggleDark()">${S.dk?"☀️ Light":"🌙 Dark"}</button>
+    </div>
+  </div>`;
+
+  if(S.imports.length>0){
+    h+=`<div class="status-bar" style="color:#22c55e">✅ Dernière importation : ${S.imports[S.imports.length-1]}</div>`;
+  }
+
+  h+=`
+  <div class="tabs">
+    <button class="tab${S.tab==="courses"?" on":""}" onclick="setS('tab','courses')">🏁 Courses</button>
+    <button class="tab${S.tab==="equipes"?" on":""}" onclick="setS('tab','equipes')">🚴 Équipes</button>
+  </div>
+  <div class="bar">
+    <div style="display:flex;gap:4px">
+      ${SOCS.map(s=>`<button class="btn btn-sm${S.soc===s?" on":""}" onclick="setS('soc','${s}')" style="display:flex;align-items:center;gap:4px">${SOC_ICONS[s]||""}${s}</button>`).join("")}
+    </div>
+    <div style="display:flex;gap:4px;align-items:center">
+      ${S.tab==="courses"?`
+        <span style="font-size:10px;color:var(--txm)">Filtrer :</span>
+        ${[{k:"all",l:"Toutes"},{k:"gt",l:"Grands Tours"},{k:"stage",l:"Étapes"},{k:"oneday",l:"1 jour"}].map(f=>`<button class="btn btn-xs${S.fil===f.k?" on":""}" onclick="setS('fil','${f.k}')">${f.l}</button>`).join("")}
+      `:""}
+      <div style="display:flex;border-radius:6px;overflow:hidden;border:1px solid var(--bd);margin-left:8px">
+        <button class="btn btn-xs${S.vw==="table"?" on":""}" onclick="setS('vw','table')" style="border-radius:6px 0 0 6px">📊 Tableau</button>
+        <button class="btn btn-xs${S.vw==="chart"?" on":""}" onclick="setS('vw','chart')" style="border-radius:0 6px 6px 0">📈 Évolution</button>
+      </div>
+    </div>
+  </div>
+  <div class="content">`;
+
+  if(!hasData){
+    h+=`<div class="import-zone" onclick="document.getElementById('fileInput').click()" id="dropZone">
+      <div style="font-size:32px;margin-bottom:8px">📁</div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:4px">Importer les données Instagram</div>
+      <div style="font-size:11px;color:var(--txm)">Glissez-déposez un fichier uci_instagram_AAAA-MM.json ou cliquez pour sélectionner</div>
+      <div style="font-size:10px;color:var(--txm);margin-top:8px">Généré par le script collecteur à exécuter sur instagram.com</div>
+    </div>`;
+  }
+
+  if(S.vw==="table"){
+    h+=`<div class="tbl-wrap"><table><thead><tr><th># ${S.tab==="courses"?"Course":"Équipe"}</th>`;
+    h+=MOS.map(m=>`<th>${m}</th>`).join("");
+    h+=`</tr></thead><tbody>`;
+    items.forEach((it,i)=>{
+      const co=cM[it.n]||"#6366f1";const fl=svgFlag(it.co);const bd=S.tab==="courses"?rbdg(it.n,it.cl):null;
+      h+=`<tr><td><div class="ent"><span class="rank">${i+1}</span><span class="cbar" style="background:${co}"></span><span class="flag">${fl}</span><span class="ename">${it.n}</span>${bd?`<span class="badge" style="background:${bd.c}">${bd.l}</span>`:""}</div></td>`;
+      MKS.forEach(mk=>{const v=gVal(it._m[mk],S.soc);h+=`<td class="${v==null?"empty":""}">${fN(v)}</td>`});
+      h+=`</tr>`;
+    });
+    h+=`</tbody></table></div>`;
+  } else {
+    const top=items.slice(0,10);
+    const vals=top.map(it=>{let v=null;for(const mk of MKS){v=gVal(it._m[mk],S.soc);if(v)break}return{n:it.n,v:v||0,c:cM[it.n]||"#6366f1"}});
+    const mx=Math.max(...vals.map(v=>v.v),1);
+    h+=`<div class="chart-box"><div class="chart-title">Classement — ${S.soc} — 2026 (Top 10)</div>`;
+    if(vals.every(v=>v.v===0)){
+      h+=`<div style="color:var(--txm);font-size:12px;padding:30px;text-align:center">Aucune donnée. Importez un fichier JSON.</div>`;
+    } else {
+      vals.forEach(v=>{
+        const pct=(v.v/mx*100);
+        h+=`<div class="chart-row"><span class="chart-name">${v.n}</span><div class="chart-track"><div class="chart-fill" style="width:${pct}%;background:${v.c}">${v.v>mx*.15?`<span class="chart-val">${fN(v.v)}</span>`:""}</div></div>${v.v<=mx*.15?`<span class="chart-val-out">${fN(v.v)}</span>`:""}</div>`;
+      });
+    }
+    h+=`</div>`;
+  }
+
+  h+=`<div class="legend">`;
+  if(S.tab==="courses"){
+    [["#ffd700","Tour de France"],["#ff69b4","Giro"],["#e53935","Vuelta"],["#7c3aed","Étapes (2.UWT)"],["#22c55e","1 jour (1.UWT)"]].forEach(([c,l])=>{
+      h+=`<div class="leg-i"><span class="leg-d" style="background:${c}"></span>${l}</div>`;
+    });
+  }
+  h+=`<div style="margin-left:auto;font-style:italic">Données Instagram exactes (non-arrondies) — collectées via console instagram.com</div></div>`;
+  h+=`</div>`;
+  app.innerHTML=h;
+
+  // Setup drag-drop
+  const dz=document.getElementById("dropZone");
+  if(dz){
+    dz.addEventListener("dragover",e=>{e.preventDefault();dz.classList.add("over")});
+    dz.addEventListener("dragleave",()=>dz.classList.remove("over"));
+    dz.addEventListener("drop",e=>{e.preventDefault();dz.classList.remove("over");if(e.dataTransfer.files[0])readFile(e.dataTransfer.files[0])});
+  }
+}
+
+function readFile(file){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const json=JSON.parse(e.target.result);
+      importJSON(json);
+      render();
+    }catch(err){alert("Erreur de lecture du fichier JSON: "+err.message)}
+  };
+  reader.readAsText(file);
+}
+
+function handleFile(e){if(e.target.files[0])readFile(e.target.files[0]);e.target.value=""}
+function setS(k,v){S[k]=v;render()}
+function toggleDark(){S.dk=!S.dk;document.body.className=S.dk?"":"light";render()}
+
+// Init
+loadFromLS();
+render();
+</script>
+</body>
+</html>
