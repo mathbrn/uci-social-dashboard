@@ -298,6 +298,20 @@ function getApifyToken(){return localStorage.getItem("uci-dash-apify-token")||""
 function setApifyToken(t){localStorage.setItem("uci-dash-apify-token",t)}
 let _collecting=false;
 
+// Fetch with retry (handles transient network errors)
+async function fetchRetry(url,opts={},retries=3){
+  for(let i=0;i<retries;i++){
+    try{
+      const r=await fetch(url,opts);
+      return r;
+    }catch(e){
+      if(i===retries-1)throw e;
+      modalLog(`⚠️ Erreur réseau, nouvelle tentative (${i+2}/${retries})...`,"warn");
+      await new Promise(r=>setTimeout(r,2000*(i+1)));
+    }
+  }
+}
+
 function getAllIgUsernames(){
   const all=[...TM,...TW,...RM,...RW];
   return [...new Set(all.map(e=>e.ig).filter(Boolean))];
@@ -345,7 +359,7 @@ async function collectInstagram(){
   try{
     // Step 1: Start the Apify actor run
     modalLog("⏳ Démarrage de l'actor Apify...");
-    const startResp=await fetch(
+    const startResp=await fetchRetry(
       `https://api.apify.com/v2/acts/apify~instagram-followers-count-scraper/runs?token=${token}`,
       {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({usernames:usernames.map(u=>`https://www.instagram.com/${u}/`)})}
     );
@@ -367,7 +381,7 @@ async function collectInstagram(){
       await new Promise(r=>setTimeout(r,5000));
       polls++;
       if(polls>maxPolls)throw new Error("Timeout — la collecte prend trop de temps");
-      const pollResp=await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${token}`);
+      const pollResp=await fetchRetry(`https://api.apify.com/v2/actor-runs/${runId}?token=${token}`);
       if(!pollResp.ok)throw new Error(`Erreur polling (${pollResp.status})`);
       const pollData=await pollResp.json();
       status=pollData.data.status;
@@ -384,7 +398,7 @@ async function collectInstagram(){
 
     // Step 3: Get dataset results
     modalLog("📥 Récupération des résultats...");
-    const dataResp=await fetch(
+    const dataResp=await fetchRetry(
       `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${token}`
     );
     if(!dataResp.ok)throw new Error(`Erreur récupération données (${dataResp.status})`);
@@ -491,7 +505,7 @@ async function collectFacebook(){
 
   try{
     modalLog("⏳ Démarrage de l'actor Apify (Facebook Pages Scraper)...");
-    const startResp=await fetch(
+    const startResp=await fetchRetry(
       `https://api.apify.com/v2/acts/apify~facebook-pages-scraper/runs?token=${token}`,
       {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
         startUrls:fbPages.map(p=>({url:`https://www.facebook.com/${p}/`})),
@@ -518,7 +532,7 @@ async function collectFacebook(){
       await new Promise(r=>setTimeout(r,5000));
       polls++;
       if(polls>maxPolls)throw new Error("Timeout — la collecte prend trop de temps");
-      const pollResp=await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${token}`);
+      const pollResp=await fetchRetry(`https://api.apify.com/v2/actor-runs/${runId}?token=${token}`);
       if(!pollResp.ok)throw new Error(`Erreur polling (${pollResp.status})`);
       const pollData=await pollResp.json();
       status=pollData.data.status;
@@ -534,7 +548,7 @@ async function collectFacebook(){
     setProgress(90);
 
     modalLog("📥 Récupération des résultats...");
-    const dataResp=await fetch(
+    const dataResp=await fetchRetry(
       `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${token}`
     );
     if(!dataResp.ok)throw new Error(`Erreur récupération données (${dataResp.status})`);
