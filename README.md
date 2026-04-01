@@ -4,7 +4,7 @@ Dashboard centralisé de suivi des followers sur les réseaux sociaux des course
 
 ## 🌐 Accès en ligne
 
-➡️ **[Ouvrir le Dashboard](https://<VOTRE-USERNAME>.github.io/uci-social-dashboard/)**
+➡️ **[Ouvrir le Dashboard](https://mathbrn.github.io/uci-social-dashboard/)**
 
 ## 📊 Fonctionnalités
 
@@ -50,7 +50,7 @@ Dashboard centralisé de suivi des followers sur les réseaux sociaux des course
 1. Créez un nouveau repo GitHub : `uci-social-dashboard`
 2. Poussez ces fichiers
 3. Allez dans **Settings → Pages → Source: Deploy from a branch → main → / (root)**
-4. Le dashboard sera accessible à : `https://<username>.github.io/uci-social-dashboard/`
+4. Le dashboard sera accessible à : `https://mathbrn.github.io/uci-social-dashboard/`
 
 ## 📝 Modifications
 
