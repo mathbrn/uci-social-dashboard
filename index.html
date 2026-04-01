@@ -54,10 +54,29 @@ tbody tr:hover td{background:var(--bg2)}
 .import-zone:hover{border-color:var(--ac);background:var(--bg2)}
 .import-zone.over{border-color:var(--ac);background:rgba(99,102,241,.1)}
 #fileInput{display:none}
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:100;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal{background:var(--bg);border:1px solid var(--bd);border-radius:14px;padding:28px;width:420px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:6px}
+.modal-sub{font-size:11px;color:var(--txm);margin-bottom:20px}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modal-btn{display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:10px;border:1px solid var(--bd);background:var(--bgc);color:var(--tx);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s}
+.modal-btn:hover:not(:disabled){border-color:var(--ac);background:var(--bg2);transform:translateY(-1px)}
+.modal-btn:disabled{opacity:.5;cursor:not-allowed}
+.modal-btn .mbico{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.modal-close{position:absolute;top:12px;right:16px;background:none;border:none;color:var(--txm);font-size:20px;cursor:pointer;padding:4px 8px}
+.modal-close:hover{color:var(--tx)}
+.modal-status{margin-top:16px;padding:12px;border-radius:8px;font-size:11px;line-height:1.6;max-height:180px;overflow-y:auto;background:var(--bg2);border:1px solid var(--bd);display:none}
+.modal-status.show{display:block}
+.modal-progress{width:100%;height:4px;border-radius:2px;background:var(--bd);margin-top:12px;overflow:hidden;display:none}
+.modal-progress.show{display:block}
+.modal-progress-bar{height:100%;background:var(--ac);border-radius:2px;transition:width .3s;width:0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.collecting{animation:pulse 1.5s infinite}
 </style>
 </head>
 <body>
 <div id="app"></div>
+<div id="modal-container"></div>
 <script>
 /* ═══════════════════════════════════════
    UCI WorldTour Social Dashboard 2026
@@ -186,10 +205,9 @@ function render(){
       <span class="logo"><b>UCI</b> Social Media Dashboard</span><span class="yr">2026</span>
     </div>
     <div class="ctrls">
-      <button class="btn" onclick="document.getElementById('fileInput').click()" style="display:flex;align-items:center;gap:5px">
-        📁 Importer JSON
+      <button class="btn" onclick="openUpdateModal()" style="display:flex;align-items:center;gap:5px">
+        🔄 Actualiser données
       </button>
-      <input type="file" id="fileInput" accept=".json" onchange="handleFile(event)">
       <div style="display:flex;border-radius:6px;overflow:hidden;border:1px solid var(--bd)">
         <button class="btn${S.gen==="men"?" on":""}" onclick="setS('gen','men')" style="border-radius:6px 0 0 6px">♂ Hommes</button>
         <button class="btn${S.gen==="women"?" on":""}" onclick="setS('gen','women')" style="border-radius:0 6px 6px 0">♀ Femmes</button>
@@ -225,11 +243,11 @@ function render(){
   <div class="content">`;
 
   if(!hasData){
-    h+=`<div class="import-zone" onclick="document.getElementById('fileInput').click()" id="dropZone">
-      <div style="font-size:32px;margin-bottom:8px">📁</div>
-      <div style="font-size:14px;font-weight:600;margin-bottom:4px">Importer les données Instagram</div>
-      <div style="font-size:11px;color:var(--txm)">Glissez-déposez un fichier uci_instagram_AAAA-MM.json ou cliquez pour sélectionner</div>
-      <div style="font-size:10px;color:var(--txm);margin-top:8px">Généré par le script collecteur à exécuter sur instagram.com</div>
+    h+=`<div class="import-zone" onclick="openUpdateModal()">
+      <div style="font-size:32px;margin-bottom:8px">🔄</div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:4px">Actualiser les données</div>
+      <div style="font-size:11px;color:var(--txm)">Cliquez pour collecter automatiquement les followers via l'API Apify</div>
+      <div style="font-size:10px;color:var(--txm);margin-top:8px">Instagram disponible — Facebook, X, TikTok bientôt</div>
     </div>`;
   }
 
@@ -250,7 +268,7 @@ function render(){
     const mx=Math.max(...vals.map(v=>v.v),1);
     h+=`<div class="chart-box"><div class="chart-title">Classement — ${S.soc} — 2026 (Top 10)</div>`;
     if(vals.every(v=>v.v===0)){
-      h+=`<div style="color:var(--txm);font-size:12px;padding:30px;text-align:center">Aucune donnée. Importez un fichier JSON.</div>`;
+      h+=`<div style="color:var(--txm);font-size:12px;padding:30px;text-align:center">Aucune donnée. Cliquez sur "Actualiser données" pour collecter.</div>`;
     } else {
       vals.forEach(v=>{
         const pct=(v.v/mx*100);
@@ -266,34 +284,193 @@ function render(){
       h+=`<div class="leg-i"><span class="leg-d" style="background:${c}"></span>${l}</div>`;
     });
   }
-  h+=`<div style="margin-left:auto;font-style:italic">Données Instagram exactes (non-arrondies) — collectées via console instagram.com</div></div>`;
+  h+=`<div style="margin-left:auto;font-style:italic">Données exactes (non-arrondies) — collectées via API Apify</div></div>`;
   h+=`</div>`;
   app.innerHTML=h;
 
-  // Setup drag-drop
-  const dz=document.getElementById("dropZone");
-  if(dz){
-    dz.addEventListener("dragover",e=>{e.preventDefault();dz.classList.add("over")});
-    dz.addEventListener("dragleave",()=>dz.classList.remove("over"));
-    dz.addEventListener("drop",e=>{e.preventDefault();dz.classList.remove("over");if(e.dataTransfer.files[0])readFile(e.dataTransfer.files[0])});
+}
+
+function setS(k,v){S[k]=v;render()}
+function toggleDark(){S.dk=!S.dk;document.body.className=S.dk?"":"light";render()}
+
+// ═══ APIFY COLLECTION ═══
+function getApifyToken(){return localStorage.getItem("uci-dash-apify-token")||""}
+function setApifyToken(t){localStorage.setItem("uci-dash-apify-token",t)}
+let _collecting=false;
+
+function getAllIgUsernames(){
+  const all=[...TM,...TW,...RM,...RW];
+  return [...new Set(all.map(e=>e.ig).filter(Boolean))];
+}
+
+function modalLog(msg,type){
+  const st=document.getElementById("modal-status");
+  if(!st)return;
+  st.classList.add("show");
+  const color=type==="ok"?"#22c55e":type==="err"?"#ef4444":type==="warn"?"#f59e0b":"var(--txm)";
+  st.innerHTML+=`<div style="color:${color}">${msg}</div>`;
+  st.scrollTop=st.scrollHeight;
+}
+
+function setProgress(pct){
+  const bar=document.getElementById("modal-progress");
+  const fill=document.getElementById("modal-progress-bar");
+  if(!bar||!fill)return;
+  bar.classList.add("show");
+  fill.style.width=pct+"%";
+}
+
+async function collectInstagram(){
+  if(_collecting)return;
+  const token=getApifyToken();
+  if(!token){
+    modalLog("❌ Clé API Apify manquante. Saisissez-la ci-dessus.","err");
+    document.getElementById("apify-token-input")?.focus();
+    return;
+  }
+  _collecting=true;
+  const btn=document.getElementById("btn-ig");
+  if(btn){btn.disabled=true;btn.classList.add("collecting")}
+  const st=document.getElementById("modal-status");
+  if(st){st.innerHTML="";st.classList.add("show")}
+
+  const usernames=getAllIgUsernames();
+  modalLog(`🚀 Lancement de la collecte Instagram — ${usernames.length} comptes...`);
+  setProgress(5);
+
+  try{
+    // Step 1: Start the Apify actor run
+    modalLog("⏳ Démarrage de l'actor Apify...");
+    const startResp=await fetch(
+      `https://api.apify.com/v2/acts/apify~instagram-followers-count-scraper/runs?token=${token}`,
+      {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({usernames})}
+    );
+    if(!startResp.ok){
+      const errText=await startResp.text();
+      throw new Error(`Erreur Apify (${startResp.status}): ${errText}`);
+    }
+    const runData=await startResp.json();
+    const runId=runData.data.id;
+    modalLog(`✅ Actor lancé (run: ${runId.substring(0,8)}...)`);
+    setProgress(15);
+
+    // Step 2: Poll for completion
+    modalLog("⏳ Collecte en cours...");
+    let status="RUNNING";
+    let polls=0;
+    const maxPolls=120; // max ~10 min
+    while(status==="RUNNING"||status==="READY"){
+      await new Promise(r=>setTimeout(r,5000));
+      polls++;
+      if(polls>maxPolls)throw new Error("Timeout — la collecte prend trop de temps");
+      const pollResp=await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${token}`);
+      if(!pollResp.ok)throw new Error(`Erreur polling (${pollResp.status})`);
+      const pollData=await pollResp.json();
+      status=pollData.data.status;
+      const pct=Math.min(15+polls*1.5,85);
+      setProgress(pct);
+      if(polls%6===0)modalLog(`⏳ En cours... (${Math.round(pct)}%)`);
+    }
+
+    if(status!=="SUCCEEDED"){
+      throw new Error(`L'actor a terminé avec le statut: ${status}`);
+    }
+    modalLog("✅ Collecte terminée !");
+    setProgress(90);
+
+    // Step 3: Get dataset results
+    modalLog("📥 Récupération des résultats...");
+    const dataResp=await fetch(
+      `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${token}`
+    );
+    if(!dataResp.ok)throw new Error(`Erreur récupération données (${dataResp.status})`);
+    const results=await dataResp.json();
+    setProgress(95);
+
+    // Step 4: Import into dashboard
+    const now=new Date();
+    const monthKey=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"][now.getMonth()];
+    let ok=0,fail=0;
+
+    for(const item of results){
+      const username=item.username||item.profileName||item.inputUrl?.replace(/.*instagram\.com\//,"").replace(/\//g,"");
+      const followers=item.followersCount??item.followers??item.edge_followed_by?.count??null;
+      if(!username)continue;
+      const cleanUsername=username.replace(/^@/,"").toLowerCase();
+      if(followers!=null){
+        for(const list of[TM,TW,RM,RW]){
+          for(const e of list){
+            if(e.ig&&e.ig.toLowerCase()===cleanUsername){
+              const k=e.n+"|"+(e.cl||e.co);
+              if(!S.dt[k])S.dt[k]={};
+              if(!S.dt[k][monthKey])S.dt[k][monthKey]={};
+              S.dt[k][monthKey].ig=followers;
+              ok++;
+            }
+          }
+        }
+      } else { fail++ }
+    }
+
+    saveToLS();
+    setProgress(100);
+    modalLog(`🏁 Import terminé : ${ok} entrées mises à jour, ${fail} échecs`,"ok");
+    S.imports.push(now.toISOString().split("T")[0]+" (Instagram via Apify — "+ok+" comptes)");
+    render();
+
+  }catch(err){
+    modalLog(`❌ Erreur: ${err.message}`,"err");
+  }finally{
+    _collecting=false;
+    if(btn){btn.disabled=false;btn.classList.remove("collecting")}
   }
 }
 
-function readFile(file){
-  const reader=new FileReader();
-  reader.onload=e=>{
-    try{
-      const json=JSON.parse(e.target.result);
-      importJSON(json);
-      render();
-    }catch(err){alert("Erreur de lecture du fichier JSON: "+err.message)}
-  };
-  reader.readAsText(file);
+function openUpdateModal(){
+  const mc=document.getElementById("modal-container");
+  mc.innerHTML=`
+  <div class="modal-overlay" onclick="if(event.target===this)closeUpdateModal()">
+    <div class="modal" style="position:relative">
+      <button class="modal-close" onclick="closeUpdateModal()">✕</button>
+      <div class="modal-title">🔄 Actualiser les données</div>
+      <div class="modal-sub">Saisissez votre clé API Apify puis cliquez sur un réseau social pour collecter les followers.</div>
+      <div style="margin-bottom:16px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="password" id="apify-token-input" placeholder="Clé API Apify (apify_api_...)" value="${getApifyToken()}"
+            style="flex:1;padding:8px 12px;border-radius:6px;border:1px solid var(--bd);background:var(--bg2);color:var(--tx);font-size:12px;font-family:monospace"
+            onchange="setApifyToken(this.value)">
+          <button class="btn btn-sm" onclick="const i=document.getElementById('apify-token-input');i.type=i.type==='password'?'text':'password'" style="font-size:10px">👁</button>
+        </div>
+        <div style="font-size:9px;color:var(--txm);margin-top:4px">Stockée localement dans votre navigateur uniquement</div>
+      </div>
+      <div class="modal-grid">
+        <button class="modal-btn" id="btn-ig" onclick="collectInstagram()">
+          <span class="mbico" style="background:#E1306C;color:#fff">${SOC_ICONS.Instagram}</span>
+          Instagram
+        </button>
+        <button class="modal-btn" disabled title="Bientôt disponible">
+          <span class="mbico" style="background:#1877F2;color:#fff">${SOC_ICONS.Facebook}</span>
+          Facebook
+        </button>
+        <button class="modal-btn" disabled title="Bientôt disponible">
+          <span class="mbico" style="background:#000;color:#fff">${SOC_ICONS.X}</span>
+          X (Twitter)
+        </button>
+        <button class="modal-btn" disabled title="Bientôt disponible">
+          <span class="mbico" style="background:#000;color:#fff">${SOC_ICONS.TikTok}</span>
+          TikTok
+        </button>
+      </div>
+      <div class="modal-progress" id="modal-progress"><div class="modal-progress-bar" id="modal-progress-bar"></div></div>
+      <div class="modal-status" id="modal-status"></div>
+    </div>
+  </div>`;
 }
 
-function handleFile(e){if(e.target.files[0])readFile(e.target.files[0]);e.target.value=""}
-function setS(k,v){S[k]=v;render()}
-function toggleDark(){S.dk=!S.dk;document.body.className=S.dk?"":"light";render()}
+function closeUpdateModal(){
+  if(_collecting){if(!confirm("Une collecte est en cours. Fermer quand même ?"))return}
+  document.getElementById("modal-container").innerHTML="";
+}
 
 // Init
 loadFromLS();
