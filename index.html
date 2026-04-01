@@ -343,7 +343,7 @@ async function collectInstagram(){
     modalLog("⏳ Démarrage de l'actor Apify...");
     const startResp=await fetch(
       `https://api.apify.com/v2/acts/apify~instagram-followers-count-scraper/runs?token=${token}`,
-      {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({usernames})}
+      {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({usernames:usernames.map(u=>`https://www.instagram.com/${u}/`)})}
     );
     if(!startResp.ok){
       const errText=await startResp.text();
@@ -392,24 +392,66 @@ async function collectInstagram(){
     const monthKey=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"][now.getMonth()];
     let ok=0,fail=0;
 
-    for(const item of results){
-      const username=item.username||item.profileName||item.inputUrl?.replace(/.*instagram\.com\//,"").replace(/\//g,"");
-      const followers=item.followersCount??item.followers??item.edge_followed_by?.count??null;
-      if(!username)continue;
-      const cleanUsername=username.replace(/^@/,"").toLowerCase();
-      if(followers!=null){
-        for(const list of[TM,TW,RM,RW]){
-          for(const e of list){
-            if(e.ig&&e.ig.toLowerCase()===cleanUsername){
-              const k=e.n+"|"+(e.cl||e.co);
-              if(!S.dt[k])S.dt[k]={};
-              if(!S.dt[k][monthKey])S.dt[k][monthKey]={};
-              S.dt[k][monthKey].ig=followers;
-              ok++;
-            }
-          }
+    // Debug: log first item to see actual field names
+    if(results.length>0){
+      const sample=results[0];
+      const keys=Object.keys(sample);
+      modalLog(`📋 Format reçu (${results.length} items) — champs: ${keys.join(", ")}`);
+      modalLog(`📋 Exemple: ${JSON.stringify(sample).substring(0,200)}...`);
+    }
+
+    // Build a lookup map: lowercase ig username -> list of entities
+    const igMap={};
+    for(const list of[TM,TW,RM,RW]){
+      for(const e of list){
+        if(e.ig){
+          const key=e.ig.toLowerCase();
+          if(!igMap[key])igMap[key]=[];
+          igMap[key].push(e);
         }
-      } else { fail++ }
+      }
+    }
+
+    for(const item of results){
+      // Try every possible field name for username
+      let username=item.username||item.profileName||item.handle||item.name||item.login||item.id||"";
+      // If it's a URL, extract username from it
+      if(!username&&item.inputUrl)username=item.inputUrl;
+      if(!username&&item.url)username=item.url;
+      if(!username&&item.profileUrl)username=item.profileUrl;
+      if(!username&&item.input)username=typeof item.input==="string"?item.input:item.input?.username||"";
+      // Clean: remove URL parts, @, trailing slashes
+      if(typeof username==="string"){
+        username=username.replace(/https?:\/\/(www\.)?instagram\.com\//gi,"").replace(/\/.*$/,"").replace(/^@/,"").trim().toLowerCase();
+      }
+
+      // Try every possible field name for follower count
+      let followers=null;
+      for(const f of["followersCount","followers","followerCount","edge_followed_by","subscribersCount","followedBy","follower_count"]){
+        if(item[f]!=null){
+          followers=typeof item[f]==="object"?item[f].count:item[f];
+          break;
+        }
+      }
+
+      if(!username){fail++;continue}
+
+      const matched=igMap[username];
+      if(matched&&followers!=null){
+        for(const e of matched){
+          const k=e.n+"|"+(e.cl||e.co);
+          if(!S.dt[k])S.dt[k]={};
+          if(!S.dt[k][monthKey])S.dt[k][monthKey]={};
+          S.dt[k][monthKey].ig=followers;
+          ok++;
+        }
+      } else if(followers==null){
+        fail++;
+        if(results.length<=20)modalLog(`⚠️ @${username}: pas de followers trouvé`,"warn");
+      } else {
+        fail++;
+        if(results.length<=20)modalLog(`⚠️ @${username}: non trouvé dans le dashboard`,"warn");
+      }
     }
 
     saveToLS();
