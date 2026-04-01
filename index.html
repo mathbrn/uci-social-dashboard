@@ -413,13 +413,12 @@ async function collectInstagram(){
     }
 
     for(const item of results){
-      // Try every possible field name for username
-      let username=item.username||item.profileName||item.handle||item.name||item.login||item.id||"";
+      // Extract username — Apify returns "userName" (camelCase)
+      let username=item.userName||item.username||item.profileName||item.handle||item.name||"";
       // If it's a URL, extract username from it
-      if(!username&&item.inputUrl)username=item.inputUrl;
-      if(!username&&item.url)username=item.url;
-      if(!username&&item.profileUrl)username=item.profileUrl;
-      if(!username&&item.input)username=typeof item.input==="string"?item.input:item.input?.username||"";
+      if(!username&&(item.userUrl||item.inputUrl||item.url)){
+        username=(item.userUrl||item.inputUrl||item.url);
+      }
       // Clean: remove URL parts, @, trailing slashes
       if(typeof username==="string"){
         username=username.replace(/https?:\/\/(www\.)?instagram\.com\//gi,"").replace(/\/.*$/,"").replace(/^@/,"").trim().toLowerCase();
