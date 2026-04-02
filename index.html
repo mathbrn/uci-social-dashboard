@@ -656,12 +656,10 @@ async function collectX(){
   try{
     modalLog("⏳ Démarrage de l'actor Apify (Twitter Profile Scraper)...");
     const startResp=await fetchRetry(
-      `https://api.apify.com/v2/acts/epctex~twitter-profile-scraper/runs?token=${token}`,
+      `https://api.apify.com/v2/acts/happitap~twitter-profile-scraper/runs?token=${token}`,
       {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-        startUrls:xHandles.map(h=>`https://x.com/${h}`),
-        onlyUserInfo:true,
-        maxTweetsPerUser:0,
-        proxy:{useApifyProxy:true}
+        handles:xHandles,
+        proxyConfiguration:{useApifyProxy:true}
       })}
     );
     if(!startResp.ok){
