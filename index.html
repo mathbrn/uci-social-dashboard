@@ -708,7 +708,12 @@ async function collectX(){
     if(results.length>0){
       const sample=results[0];
       modalLog(`📋 Format reçu (${results.length} items) — champs: ${Object.keys(sample).join(", ")}`);
-      modalLog(`📋 Exemple: ${JSON.stringify(sample).substring(0,250)}...`);
+      // Deep debug: show structure of key nested objects
+      if(sample.core) modalLog(`🔍 core: ${JSON.stringify(sample.core).substring(0,400)}`);
+      if(sample.relationship_counts) modalLog(`🔍 relationship_counts: ${JSON.stringify(sample.relationship_counts).substring(0,400)}`);
+      if(sample.properties) modalLog(`🔍 properties: ${JSON.stringify(sample.properties).substring(0,400)}`);
+      if(sample.profile_bio) modalLog(`🔍 profile_bio: ${JSON.stringify(sample.profile_bio).substring(0,300)}`);
+      modalLog(`🔍 rest_id: ${sample.rest_id}`);
     }
 
     // Build X lookup: lowercase handle -> entities
@@ -723,34 +728,63 @@ async function collectX(){
       }
     }
 
-    for(const item of results){
-      // kaitoeasyapi structure: item.core.screen_name, item.relationship_counts.followers_count
-      // Fallback to flat structure for other actors
-      const core=item.core||{};
-      const relCounts=item.relationship_counts||item.relationship_count||{};
-      const user=item.user||item.author||item;
+    // Deep search helper: find a value by key name recursively (max depth 5)
+    function deepFind(obj,key,depth=0){
+      if(!obj||typeof obj!=="object"||depth>5)return undefined;
+      if(obj[key]!==undefined)return obj[key];
+      for(const k of Object.keys(obj)){
+        const v=deepFind(obj[k],key,depth+1);
+        if(v!==undefined)return v;
+      }
+      return undefined;
+    }
 
-      let handle=core.screen_name||core.username||core.userName
-        ||user.screen_name||user.username||user.userName||user.handle||item.handle||"";
+    for(const item of results){
+      // Try multiple paths for handle extraction
+      let handle="";
+      // Direct fields
+      handle=item.screen_name||item.username||item.userName||item.handle||"";
+      // Nested in core (various possible structures)
       if(!handle){
-        // Try extracting from URL
+        const core=item.core||{};
+        handle=core.screen_name||core.username||core.userName||"";
+        // Twitter API nests under core.user_results.result.legacy
+        if(!handle&&core.user_results?.result?.legacy){
+          handle=core.user_results.result.legacy.screen_name||"";
+        }
+      }
+      // Nested in properties
+      if(!handle){
+        const props=item.properties||{};
+        handle=props.screen_name||props.username||props.userName||"";
+      }
+      // Deep recursive search as last resort
+      if(!handle){
+        handle=deepFind(item,"screen_name")||deepFind(item,"username")||"";
+      }
+      if(!handle){
         const url=item.url||item.profileUrl||item.inputUrl||"";
         if(url)handle=url.replace(/https?:\/\/(www\.)?(twitter\.com|x\.com)\//gi,"").replace(/\/.*$/,"").replace(/^@/,"");
       }
-      handle=handle.toLowerCase().trim();
+      handle=String(handle).toLowerCase().trim();
 
       let followers=null;
-      // kaitoeasyapi nests follower count in relationship_counts
-      for(const f of["followers_count","followers","normal_followers_count","followersCount"]){
-        const val=relCounts[f];
-        if(val!=null&&typeof val==="number"){followers=val;break}
+      // Direct on item
+      if(typeof item.followers_count==="number") followers=item.followers_count;
+      // In relationship_counts
+      if(followers==null){
+        const rc=item.relationship_counts||{};
+        followers=rc.followers_count??rc.followers??null;
+        if(followers!=null&&typeof followers!=="number") followers=null;
+      }
+      // Deep search
+      if(followers==null){
+        const fc=deepFind(item,"followers_count");
+        if(typeof fc==="number") followers=fc;
       }
       if(followers==null){
-        // Fallback: flat fields on user or item
-        for(const f of["followers_count","followersCount","normal_followers_count","followers","subscribersCount"]){
-          const val=user[f]??item[f];
-          if(val!=null&&typeof val==="number"){followers=val;break}
-        }
+        const fc=deepFind(item,"normal_followers_count");
+        if(typeof fc==="number") followers=fc;
       }
 
       if(!handle){fail++;continue}
