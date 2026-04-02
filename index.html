@@ -59,7 +59,8 @@ tbody tr:hover td{background:var(--bg2)}
 .modal-title{font-size:16px;font-weight:700;margin-bottom:6px}
 .modal-sub{font-size:11px;color:var(--txm);margin-bottom:20px}
 .modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.modal-btn{display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:10px;border:1px solid var(--bd);background:var(--bgc);color:var(--tx);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s}
+.modal-btn{display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:10px;border:1px solid var(--bd);background:var(--bgc);color:var(--tx);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;flex-wrap:wrap}
+.modal-btn-date{width:100%;font-size:10px;font-weight:400;margin-top:2px}
 .modal-btn:hover:not(:disabled){border-color:var(--ac);background:var(--bg2);transform:translateY(-1px)}
 .modal-btn:disabled{opacity:.5;cursor:not-allowed}
 .modal-btn .mbico{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -147,10 +148,16 @@ function gVal(md,s){
 }
 
 // ═══ STATE ═══
-let S={dk:true,gen:"men",tab:"courses",soc:"Overall",vw:"table",fil:"all",dt:{},imports:[]};
+let S={dk:true,gen:"men",tab:"courses",soc:"Overall",vw:"table",fil:"all",dt:{},imports:[],lastUpdate:{ig:null,fb:null,x:null,tk:null}};
 
-function loadFromLS(){try{const d=localStorage.getItem("uci-dash-v2");if(d)S.dt=JSON.parse(d)}catch{}}
-function saveToLS(){try{localStorage.setItem("uci-dash-v2",JSON.stringify(S.dt))}catch{}}
+function loadFromLS(){
+  try{const d=localStorage.getItem("uci-dash-v2");if(d)S.dt=JSON.parse(d)}catch{}
+  try{const u=localStorage.getItem("uci-dash-lastup");if(u)S.lastUpdate=JSON.parse(u)}catch{}
+}
+function saveToLS(){
+  try{localStorage.setItem("uci-dash-v2",JSON.stringify(S.dt))}catch{}
+  try{localStorage.setItem("uci-dash-lastup",JSON.stringify(S.lastUpdate))}catch{}
+}
 
 function importJSON(json){
   const mk=json.month;
@@ -478,6 +485,7 @@ async function collectInstagram(){
     saveToLS();
     setProgress(100);
     modalLog(`🏁 Import terminé : ${ok} entrées mises à jour, ${fail} échecs`,"ok");
+    S.lastUpdate.ig=now.toISOString().split("T")[0];
     S.imports.push(now.toISOString().split("T")[0]+" (Instagram via Apify — "+ok+" comptes)");
     render();
 
@@ -624,6 +632,7 @@ async function collectFacebook(){
     saveToLS();
     setProgress(100);
     modalLog(`🏁 Import terminé : ${ok} entrées mises à jour, ${fail} échecs`,"ok");
+    S.lastUpdate.fb=now.toISOString().split("T")[0];
     S.imports.push(now.toISOString().split("T")[0]+" (Facebook via Apify — "+ok+" comptes)");
     render();
 
@@ -810,6 +819,7 @@ async function collectX(){
     saveToLS();
     setProgress(100);
     modalLog(`🏁 Import terminé : ${ok} entrées mises à jour, ${fail} échecs`,"ok");
+    S.lastUpdate.x=now.toISOString().split("T")[0];
     S.imports.push(now.toISOString().split("T")[0]+" (X via Apify — "+ok+" comptes)");
     render();
 
@@ -819,6 +829,17 @@ async function collectX(){
     _collecting=false;
     if(btn){btn.disabled=false;btn.classList.remove("collecting")}
   }
+}
+
+function fmtLastUpdate(dateStr){
+  if(!dateStr)return '<span style="color:var(--txm)">Jamais actualisé</span>';
+  const d=new Date(dateStr);
+  const mois=["janv.","fév.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
+  const today=new Date();
+  const sameMonth=d.getMonth()===today.getMonth()&&d.getFullYear()===today.getFullYear();
+  const label=d.getDate()+" "+mois[d.getMonth()]+" "+d.getFullYear();
+  if(sameMonth) return '<span style="color:#22c55e">✅ '+label+'</span>';
+  return '<span style="color:#f59e0b">⏰ '+label+'</span>';
 }
 
 function openUpdateModal(){
@@ -842,18 +863,22 @@ function openUpdateModal(){
         <button class="modal-btn" id="btn-ig" onclick="collectInstagram()">
           <span class="mbico" style="background:#E1306C;color:#fff">${SOC_ICONS.Instagram}</span>
           Instagram
+          <span class="modal-btn-date">${fmtLastUpdate(S.lastUpdate.ig)}</span>
         </button>
         <button class="modal-btn" id="btn-fb" onclick="collectFacebook()">
           <span class="mbico" style="background:#1877F2;color:#fff">${SOC_ICONS.Facebook}</span>
           Facebook
+          <span class="modal-btn-date">${fmtLastUpdate(S.lastUpdate.fb)}</span>
         </button>
         <button class="modal-btn" id="btn-x" onclick="collectX()">
           <span class="mbico" style="background:#000;color:#fff">${SOC_ICONS.X}</span>
           X (Twitter)
+          <span class="modal-btn-date">${fmtLastUpdate(S.lastUpdate.x)}</span>
         </button>
         <button class="modal-btn" disabled title="Bientôt disponible">
           <span class="mbico" style="background:#000;color:#fff">${SOC_ICONS.TikTok}</span>
           TikTok
+          <span class="modal-btn-date">${fmtLastUpdate(S.lastUpdate.tk)}</span>
         </button>
       </div>
       <div class="modal-progress" id="modal-progress"><div class="modal-progress-bar" id="modal-progress-bar"></div></div>
