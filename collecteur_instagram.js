@@ -20,7 +20,7 @@
   // Tous les comptes Instagram à collecter
   const accounts = [
     // ─── EQUIPES HOMMES ───
-    {cat:"team_men",name:"Ineos Grenadiers",ig:"ineos_grenadiers"},
+    {cat:"team_men",name:"Ineos Grenadiers",ig:"ineosgrenadiers"},
     {cat:"team_men",name:"Team Visma-Lease a Bike",ig:"teamvisma_leaseabike"},
     {cat:"team_men",name:"UAE Emirates XRG",ig:"uae_team_emirates"},
     {cat:"team_men",name:"Movistar",ig:"movistarteam"},
@@ -39,8 +39,8 @@
     {cat:"team_men",name:"Team Picnic PostNL",ig:"teampicnicpostnl"},
     {cat:"team_men",name:"XDS-Astana",ig:"xds_astana_team"},
     // ─── EQUIPES FEMMES ───
-    {cat:"team_women",name:"Team SD Worx-Protime",ig:"sdworxprotime"},
-    {cat:"team_women",name:"Canyon//SRAM zondacrypto",ig:"canyonsramzondacrypto"},
+    {cat:"team_women",name:"Team SD Worx-Protime",ig:"teamsdworxprotime"},
+    {cat:"team_women",name:"Canyon//SRAM zondacrypto",ig:"wmncycling"},
     {cat:"team_women",name:"Lidl-Trek (W)",ig:"lidl_trek_women"},
     {cat:"team_women",name:"Team Visma | Lease a Bike (W)",ig:"teamvisma_leaseabike_women"},
     {cat:"team_women",name:"Movistar Team (W)",ig:"movistarteamwomen"},
