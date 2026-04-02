@@ -654,12 +654,11 @@ async function collectX(){
   setProgress(5);
 
   try{
-    modalLog("⏳ Démarrage de l'actor Apify (Twitter Profile Scraper)...");
+    modalLog("⏳ Démarrage de l'actor Apify (Premium X User Scraper)...");
     const startResp=await fetchRetry(
-      `https://api.apify.com/v2/acts/happitap~twitter-profile-scraper/runs?token=${token}`,
+      `https://api.apify.com/v2/acts/kaitoeasyapi~premium-twitter-user-scraper-pay-per-result/runs?token=${token}`,
       {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-        handles:xHandles,
-        proxyConfiguration:{useApifyProxy:true}
+        user_ids:xHandles
       })}
     );
     if(!startResp.ok){
