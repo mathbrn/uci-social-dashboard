@@ -153,6 +153,26 @@ let S={dk:true,gen:"men",tab:"courses",soc:"Overall",vw:"table",fil:"all",dt:{},
 function loadFromLS(){
   try{const d=localStorage.getItem("uci-dash-v2");if(d)S.dt=JSON.parse(d)}catch{}
   try{const u=localStorage.getItem("uci-dash-lastup");if(u)S.lastUpdate=JSON.parse(u)}catch{}
+  // Auto-detect last update from existing data if not yet tracked
+  if(!S.lastUpdate.ig||!S.lastUpdate.fb||!S.lastUpdate.x){
+    const months=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+    let latestIG=null,latestFB=null,latestX=null;
+    for(const key of Object.keys(S.dt)){
+      for(let m=months.length-1;m>=0;m--){
+        const mk=months[m];
+        const cell=S.dt[key]?.[mk];
+        if(!cell)continue;
+        if(cell.ig!=null&&(!latestIG||m>months.indexOf(latestIG)))latestIG=mk;
+        if(cell.fb!=null&&(!latestFB||m>months.indexOf(latestFB)))latestFB=mk;
+        if(cell.x!=null&&(!latestX||m>months.indexOf(latestX)))latestX=mk;
+      }
+    }
+    const yr=new Date().getFullYear();
+    if(latestIG&&!S.lastUpdate.ig){const mi=months.indexOf(latestIG);S.lastUpdate.ig=yr+"-"+String(mi+1).padStart(2,"0")+"-01"}
+    if(latestFB&&!S.lastUpdate.fb){const mi=months.indexOf(latestFB);S.lastUpdate.fb=yr+"-"+String(mi+1).padStart(2,"0")+"-01"}
+    if(latestX&&!S.lastUpdate.x){const mi=months.indexOf(latestX);S.lastUpdate.x=yr+"-"+String(mi+1).padStart(2,"0")+"-01"}
+    saveToLS();
+  }
 }
 function saveToLS(){
   try{localStorage.setItem("uci-dash-v2",JSON.stringify(S.dt))}catch{}
