@@ -320,6 +320,10 @@ function getAllFbPages(){
   const all=[...TM,...TW,...RM,...RW];
   return [...new Set(all.map(e=>e.fb).filter(Boolean))];
 }
+function getAllXHandles(){
+  const all=[...TM,...TW,...RM,...RW];
+  return [...new Set(all.map(e=>e.x).filter(Boolean))];
+}
 
 function modalLog(msg,type){
   const st=document.getElementById("modal-status");
@@ -631,6 +635,149 @@ async function collectFacebook(){
   }
 }
 
+async function collectX(){
+  if(_collecting)return;
+  const token=getApifyToken();
+  if(!token){
+    modalLog("❌ Clé API Apify manquante. Saisissez-la ci-dessus.","err");
+    document.getElementById("apify-token-input")?.focus();
+    return;
+  }
+  _collecting=true;
+  const btn=document.getElementById("btn-x");
+  if(btn){btn.disabled=true;btn.classList.add("collecting")}
+  const st=document.getElementById("modal-status");
+  if(st){st.innerHTML="";st.classList.add("show")}
+
+  const xHandles=getAllXHandles();
+  modalLog(`🚀 Lancement de la collecte X (Twitter) — ${xHandles.length} comptes...`);
+  setProgress(5);
+
+  try{
+    modalLog("⏳ Démarrage de l'actor Apify (Twitter Profile Scraper)...");
+    const startResp=await fetchRetry(
+      `https://api.apify.com/v2/acts/epctex~twitter-profile-scraper/runs?token=${token}`,
+      {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        startUrls:xHandles.map(h=>`https://x.com/${h}`),
+        onlyUserInfo:true,
+        maxTweetsPerUser:0,
+        proxy:{useApifyProxy:true}
+      })}
+    );
+    if(!startResp.ok){
+      const errText=await startResp.text();
+      throw new Error(`Erreur Apify (${startResp.status}): ${errText}`);
+    }
+    const runData=await startResp.json();
+    const runId=runData.data.id;
+    modalLog(`✅ Actor lancé (run: ${runId.substring(0,8)}...)`);
+    setProgress(15);
+
+    modalLog("⏳ Collecte en cours...");
+    let status="RUNNING";
+    let polls=0;
+    const maxPolls=180;
+    while(status==="RUNNING"||status==="READY"){
+      await new Promise(r=>setTimeout(r,5000));
+      polls++;
+      if(polls>maxPolls)throw new Error("Timeout — la collecte prend trop de temps");
+      const pollResp=await fetchRetry(`https://api.apify.com/v2/actor-runs/${runId}?token=${token}`);
+      if(!pollResp.ok)throw new Error(`Erreur polling (${pollResp.status})`);
+      const pollData=await pollResp.json();
+      status=pollData.data.status;
+      const pct=Math.min(15+polls*1.2,85);
+      setProgress(pct);
+      if(polls%6===0)modalLog(`⏳ En cours... (${Math.round(pct)}%)`);
+    }
+
+    if(status!=="SUCCEEDED"){
+      throw new Error(`L'actor a terminé avec le statut: ${status}`);
+    }
+    modalLog("✅ Collecte terminée !");
+    setProgress(90);
+
+    modalLog("📥 Récupération des résultats...");
+    const dataResp=await fetchRetry(
+      `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${token}`
+    );
+    if(!dataResp.ok)throw new Error(`Erreur récupération données (${dataResp.status})`);
+    const results=await dataResp.json();
+    setProgress(95);
+
+    const now=new Date();
+    const monthKey=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"][now.getMonth()];
+    let ok=0,fail=0;
+
+    if(results.length>0){
+      const sample=results[0];
+      modalLog(`📋 Format reçu (${results.length} items) — champs: ${Object.keys(sample).join(", ")}`);
+      modalLog(`📋 Exemple: ${JSON.stringify(sample).substring(0,250)}...`);
+    }
+
+    // Build X lookup: lowercase handle -> entities
+    const xMap={};
+    for(const list of[TM,TW,RM,RW]){
+      for(const e of list){
+        if(e.x){
+          const key=e.x.toLowerCase();
+          if(!xMap[key])xMap[key]=[];
+          xMap[key].push(e);
+        }
+      }
+    }
+
+    for(const item of results){
+      // The actor can return data at different levels
+      const user=item.user||item.author||item;
+      let handle=user.screen_name||user.username||user.userName||user.handle||"";
+      if(!handle){
+        // Try extracting from URL
+        const url=item.url||item.profileUrl||item.inputUrl||"";
+        if(url)handle=url.replace(/https?:\/\/(www\.)?(twitter\.com|x\.com)\//gi,"").replace(/\/.*$/,"").replace(/^@/,"");
+      }
+      handle=handle.toLowerCase().trim();
+
+      let followers=null;
+      // Try user-level fields
+      for(const f of["followers_count","followersCount","normal_followers_count","followers","subscribersCount"]){
+        const val=user[f]??item[f];
+        if(val!=null&&typeof val==="number"){followers=val;break}
+      }
+
+      if(!handle){fail++;continue}
+
+      const matched=xMap[handle];
+      if(matched&&followers!=null){
+        for(const e of matched){
+          const k=e.n+"|"+(e.cl||e.co);
+          if(!S.dt[k])S.dt[k]={};
+          if(!S.dt[k][monthKey])S.dt[k][monthKey]={};
+          S.dt[k][monthKey].x=followers;
+          ok++;
+        }
+      } else if(followers==null){
+        fail++;
+        if(results.length<=30)modalLog(`⚠️ @${handle}: pas de followers trouvé`,"warn");
+      } else {
+        fail++;
+        if(results.length<=30)modalLog(`⚠️ @${handle}: non trouvé dans le dashboard`,"warn");
+      }
+    }
+
+    saveToLS();
+    setProgress(100);
+    modalLog(`🏁 Import terminé : ${ok} entrées mises à jour, ${fail} échecs`,"ok");
+    S.imports.push(now.toISOString().split("T")[0]+" (X via Apify — "+ok+" comptes)");
+    render();
+
+  }catch(err){
+    modalLog(`❌ Erreur: ${err.message}`,"err");
+  }finally{
+    _collecting=false;
+    if(btn){btn.disabled=false;btn.classList.remove("collecting")}
+  }
+}
+
 function openUpdateModal(){
   const mc=document.getElementById("modal-container");
   mc.innerHTML=`
@@ -657,7 +804,7 @@ function openUpdateModal(){
           <span class="mbico" style="background:#1877F2;color:#fff">${SOC_ICONS.Facebook}</span>
           Facebook
         </button>
-        <button class="modal-btn" disabled title="Bientôt disponible">
+        <button class="modal-btn" id="btn-x" onclick="collectX()">
           <span class="mbico" style="background:#000;color:#fff">${SOC_ICONS.X}</span>
           X (Twitter)
         </button>
