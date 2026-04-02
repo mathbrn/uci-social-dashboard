@@ -658,7 +658,7 @@ async function collectX(){
     const startResp=await fetchRetry(
       `https://api.apify.com/v2/acts/kaitoeasyapi~premium-twitter-user-scraper-pay-per-result/runs?token=${token}`,
       {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-        user_ids:xHandles
+        user_names:xHandles
       })}
     );
     if(!startResp.ok){
