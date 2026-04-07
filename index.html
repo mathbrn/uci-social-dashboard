@@ -240,22 +240,26 @@ function saveToLS(){
 }
 
 // ═══ GITHUB GIST SYNC ═══
+// PUBLIC_GIST_ID is hardcoded so any visitor (without PAT) can read shared
+// data via GitHub's anonymous API. Set this AFTER creating the gist on first
+// collection — see modalLog instructions in syncToGist().
+const PUBLIC_GIST_ID="";
 const GIST_FILENAME="uci-dashboard-data.json";
 function getGhToken(){return localStorage.getItem("uci-dash-gh-token")||""}
 function setGhToken(t){localStorage.setItem("uci-dash-gh-token",t)}
-function getGistId(){return localStorage.getItem("uci-dash-gist-id")||""}
+function getGistId(){return localStorage.getItem("uci-dash-gist-id")||PUBLIC_GIST_ID||""}
 function setGistId(id){localStorage.setItem("uci-dash-gist-id",id)}
 function getLocalUpdatedAt(){return localStorage.getItem("uci-dash-updatedat")||""}
 function setLocalUpdatedAt(t){localStorage.setItem("uci-dash-updatedat",t)}
 
 async function syncFromGist(){
-  const token=getGhToken();
   const gistId=getGistId();
-  if(!token||!gistId)return false;
+  if(!gistId)return false;
+  const token=getGhToken();
   try{
-    const r=await fetch(`https://api.github.com/gists/${gistId}`,{
-      headers:{Authorization:`token ${token}`,Accept:"application/vnd.github+json"}
-    });
+    const headers={Accept:"application/vnd.github+json"};
+    if(token)headers.Authorization=`token ${token}`;
+    const r=await fetch(`https://api.github.com/gists/${gistId}`,{headers});
     if(!r.ok)return false;
     const gist=await r.json();
     const file=gist.files&&gist.files[GIST_FILENAME];
@@ -274,8 +278,7 @@ async function syncFromGist(){
 }
 
 async function manualSyncFromGist(){
-  if(!getGhToken()){alert("Saisissez d'abord votre PAT GitHub.");return}
-  if(!getGistId()){alert("Aucun Gist lié pour le moment. Lancez d'abord une collecte pour créer le Gist, ou collez son ID dans localStorage.");return}
+  if(!getGistId()){alert("Aucun Gist lié pour le moment. Lancez d'abord une collecte avec votre PAT pour créer le Gist.");return}
   modalLog("☁️ Récupération depuis le Gist...");
   const updated=await syncFromGist();
   if(updated){modalLog("✅ Données récupérées depuis le Gist","ok");render();openUpdateModal()}
@@ -288,18 +291,22 @@ async function syncToGist(){
   const updatedAt=new Date().toISOString();
   const payload={dt:S.dt,lastUpdate:S.lastUpdate,imports:S.imports,updatedAt};
   const fileContent=JSON.stringify(payload,null,2);
-  let gistId=getGistId();
+  let gistId=localStorage.getItem("uci-dash-gist-id")||"";
   try{
     let r;
     if(!gistId){
+      // Create as PUBLIC so colleagues without PAT can read it
       r=await fetch("https://api.github.com/gists",{
         method:"POST",
         headers:{Authorization:`token ${token}`,Accept:"application/vnd.github+json","Content-Type":"application/json"},
-        body:JSON.stringify({description:"UCI Social Dashboard data sync",public:false,files:{[GIST_FILENAME]:{content:fileContent}}})
+        body:JSON.stringify({description:"UCI Social Dashboard data sync (public read)",public:true,files:{[GIST_FILENAME]:{content:fileContent}}})
       });
       if(!r.ok)throw new Error("Création Gist échouée ("+r.status+")");
       const gist=await r.json();
       setGistId(gist.id);
+      modalLog(`☁️ Gist PUBLIC créé : ${gist.id}`,"ok");
+      modalLog(`👉 Pour partager avec vos collègues : copiez cet ID dans la constante PUBLIC_GIST_ID du fichier index.html, commit + push.`,"warn");
+      modalLog(`🔗 URL : ${gist.html_url}`,"ok");
     }else{
       r=await fetch(`https://api.github.com/gists/${gistId}`,{
         method:"PATCH",
@@ -1032,18 +1039,18 @@ function openUpdateModal(){
       </div>
       <div style="margin-bottom:20px">
         <div style="font-size:9px;color:var(--txm);text-transform:uppercase;letter-spacing:.12em;font-weight:600;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between">
-          <span>Sync GitHub Gist <span style="color:var(--txd);font-weight:500;text-transform:none;letter-spacing:0">(optionnel)</span></span>
+          <span>Sync GitHub Gist <span style="color:var(--txd);font-weight:500;text-transform:none;letter-spacing:0">(public)</span></span>
           <span style="font-family:var(--num);font-weight:500;text-transform:none;letter-spacing:0;color:${getGistId()?'#22c55e':'var(--txm)'}">${getGistId()?'● lié — '+getGistId().substring(0,8):'○ non configuré'}</span>
         </div>
         <div style="display:flex;gap:6px;align-items:center">
-          <input type="password" id="gh-token-input" placeholder="github_pat_... (scope: gist)" value="${getGhToken()}"
+          <input type="password" id="gh-token-input" placeholder="github_pat_... (scope: gist) — uniquement pour collecter" value="${getGhToken()}"
             style="flex:1;padding:10px 12px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:11px;font-family:var(--num);outline:none"
             onfocus="this.style.borderColor='var(--ac)'" onblur="this.style.borderColor='var(--bd)'"
             onchange="setGhToken(this.value)">
           <button class="btn btn-sm" onclick="const i=document.getElementById('gh-token-input');i.type=i.type==='password'?'text':'password'">Voir</button>
           <button class="btn btn-sm" onclick="manualSyncFromGist()" title="Récupérer depuis Gist">↓ Pull</button>
         </div>
-        <div style="font-size:9px;color:var(--txm);margin-top:6px;letter-spacing:.04em">PAT GitHub avec scope <code style="font-family:var(--num)">gist</code>. Synchronise automatiquement vos données entre PCs après chaque collecte.</div>
+        <div style="font-size:9px;color:var(--txm);margin-top:6px;letter-spacing:.04em;line-height:1.5">Le Gist est créé en <strong>public</strong> pour que tout le monde lise les données sans authentification. Le PAT n'est nécessaire que pour <strong>écrire</strong> (collecter). Vos collègues n'ont rien à configurer — leur dashboard récupère automatiquement les données.</div>
       </div>
       <div class="modal-grid">
         <button class="modal-btn" id="btn-ig" onclick="collectInstagram()">
