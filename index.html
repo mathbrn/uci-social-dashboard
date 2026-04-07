@@ -19,11 +19,12 @@ button{font-family:inherit;cursor:pointer;transition:all .15s;outline:none;lette
 
 /* === HEADER === */
 .hdr{padding:18px 32px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bd);flex-wrap:wrap;gap:14px;background:var(--bgc)}
-.brand{display:flex;align-items:center;gap:14px}
-.brand-mark{width:36px;height:36px;border-radius:2px;background:var(--ac);display:flex;align-items:center;justify-content:center;color:#000;font-weight:900;font-size:16px;letter-spacing:-1px;font-family:var(--num)}
+.brand{display:flex;align-items:center;gap:16px}
+.brand-mark{height:38px;width:auto;display:block}
+.brand-divider{width:1px;height:32px;background:var(--bd)}
 .brand-txt{display:flex;flex-direction:column;line-height:1.1}
-.brand-name{font-size:15px;font-weight:800;letter-spacing:-.02em;text-transform:uppercase}
-.brand-sub{font-size:9px;font-weight:500;color:var(--txm);letter-spacing:.18em;text-transform:uppercase;margin-top:2px}
+.brand-name{font-size:14px;font-weight:800;letter-spacing:-.01em;text-transform:uppercase}
+.brand-sub{font-size:9px;font-weight:500;color:var(--txm);letter-spacing:.18em;text-transform:uppercase;margin-top:3px}
 .ctrls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 
 /* === BUTTONS === */
@@ -286,9 +287,10 @@ function render(){
   let h=`
   <div class="hdr">
     <div class="brand">
-      <div class="brand-mark">U</div>
+      <img class="brand-mark" src="https://commons.wikimedia.org/wiki/Special:FilePath/Union_Cycliste_Internationale_logo.svg" alt="UCI" onerror="this.onerror=null;this.src='https://commons.wikimedia.org/wiki/Special:FilePath/UCI_Logo_2015.svg'">
+      <div class="brand-divider"></div>
       <div class="brand-txt">
-        <span class="brand-name">UCI Social Dashboard</span>
+        <span class="brand-name">Social Dashboard</span>
         <span class="brand-sub">WorldTour Season 2026</span>
       </div>
     </div>
