@@ -211,6 +211,7 @@ let S={gen:"men",tab:"courses",soc:"Overall",vw:"table",fil:"all",dt:{},imports:
 function loadFromLS(){
   try{const d=localStorage.getItem("uci-dash-v2");if(d)S.dt=JSON.parse(d)}catch{}
   try{const u=localStorage.getItem("uci-dash-lastup");if(u)S.lastUpdate=JSON.parse(u)}catch{}
+  try{const i=localStorage.getItem("uci-dash-imports");if(i)S.imports=JSON.parse(i)}catch{}
   // Auto-detect last update from existing data if not yet tracked
   if(!S.lastUpdate.ig||!S.lastUpdate.fb||!S.lastUpdate.x){
     const months=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
@@ -235,6 +236,81 @@ function loadFromLS(){
 function saveToLS(){
   try{localStorage.setItem("uci-dash-v2",JSON.stringify(S.dt))}catch{}
   try{localStorage.setItem("uci-dash-lastup",JSON.stringify(S.lastUpdate))}catch{}
+  try{localStorage.setItem("uci-dash-imports",JSON.stringify(S.imports))}catch{}
+}
+
+// ═══ GITHUB GIST SYNC ═══
+const GIST_FILENAME="uci-dashboard-data.json";
+function getGhToken(){return localStorage.getItem("uci-dash-gh-token")||""}
+function setGhToken(t){localStorage.setItem("uci-dash-gh-token",t)}
+function getGistId(){return localStorage.getItem("uci-dash-gist-id")||""}
+function setGistId(id){localStorage.setItem("uci-dash-gist-id",id)}
+function getLocalUpdatedAt(){return localStorage.getItem("uci-dash-updatedat")||""}
+function setLocalUpdatedAt(t){localStorage.setItem("uci-dash-updatedat",t)}
+
+async function syncFromGist(){
+  const token=getGhToken();
+  const gistId=getGistId();
+  if(!token||!gistId)return false;
+  try{
+    const r=await fetch(`https://api.github.com/gists/${gistId}`,{
+      headers:{Authorization:`token ${token}`,Accept:"application/vnd.github+json"}
+    });
+    if(!r.ok)return false;
+    const gist=await r.json();
+    const file=gist.files&&gist.files[GIST_FILENAME];
+    if(!file||!file.content)return false;
+    const remote=JSON.parse(file.content);
+    if(!remote.updatedAt)return false;
+    const localTs=getLocalUpdatedAt();
+    if(localTs&&new Date(remote.updatedAt)<=new Date(localTs))return false;
+    S.dt=remote.dt||{};
+    S.lastUpdate=remote.lastUpdate||{ig:null,fb:null,x:null,tk:null};
+    S.imports=remote.imports||[];
+    saveToLS();
+    setLocalUpdatedAt(remote.updatedAt);
+    return true;
+  }catch(e){console.warn("syncFromGist failed",e);return false}
+}
+
+async function manualSyncFromGist(){
+  if(!getGhToken()){alert("Saisissez d'abord votre PAT GitHub.");return}
+  if(!getGistId()){alert("Aucun Gist lié pour le moment. Lancez d'abord une collecte pour créer le Gist, ou collez son ID dans localStorage.");return}
+  modalLog("☁️ Récupération depuis le Gist...");
+  const updated=await syncFromGist();
+  if(updated){modalLog("✅ Données récupérées depuis le Gist","ok");render();openUpdateModal()}
+  else modalLog("ℹ️ Aucune mise à jour à récupérer (local déjà à jour)","warn");
+}
+
+async function syncToGist(){
+  const token=getGhToken();
+  if(!token)return false;
+  const updatedAt=new Date().toISOString();
+  const payload={dt:S.dt,lastUpdate:S.lastUpdate,imports:S.imports,updatedAt};
+  const fileContent=JSON.stringify(payload,null,2);
+  let gistId=getGistId();
+  try{
+    let r;
+    if(!gistId){
+      r=await fetch("https://api.github.com/gists",{
+        method:"POST",
+        headers:{Authorization:`token ${token}`,Accept:"application/vnd.github+json","Content-Type":"application/json"},
+        body:JSON.stringify({description:"UCI Social Dashboard data sync",public:false,files:{[GIST_FILENAME]:{content:fileContent}}})
+      });
+      if(!r.ok)throw new Error("Création Gist échouée ("+r.status+")");
+      const gist=await r.json();
+      setGistId(gist.id);
+    }else{
+      r=await fetch(`https://api.github.com/gists/${gistId}`,{
+        method:"PATCH",
+        headers:{Authorization:`token ${token}`,Accept:"application/vnd.github+json","Content-Type":"application/json"},
+        body:JSON.stringify({files:{[GIST_FILENAME]:{content:fileContent}}})
+      });
+      if(!r.ok)throw new Error("Mise à jour Gist échouée ("+r.status+")");
+    }
+    setLocalUpdatedAt(updatedAt);
+    return true;
+  }catch(e){console.warn("syncToGist failed",e);return false}
 }
 
 function importJSON(json){
@@ -571,11 +647,12 @@ async function collectInstagram(){
       }
     }
 
-    saveToLS();
     setProgress(100);
     modalLog(`🏁 Import terminé : ${ok} entrées mises à jour, ${fail} échecs`,"ok");
     S.lastUpdate.ig=now.toISOString().split("T")[0];
     S.imports.push(now.toISOString().split("T")[0]+" (Instagram via Apify — "+ok+" comptes)");
+    saveToLS();
+    syncToGist().then(ok=>{if(ok)modalLog("☁️ Synchronisé sur GitHub Gist","ok")});
     render();
 
   }catch(err){
@@ -718,11 +795,12 @@ async function collectFacebook(){
       }
     }
 
-    saveToLS();
     setProgress(100);
     modalLog(`🏁 Import terminé : ${ok} entrées mises à jour, ${fail} échecs`,"ok");
     S.lastUpdate.fb=now.toISOString().split("T")[0];
     S.imports.push(now.toISOString().split("T")[0]+" (Facebook via Apify — "+ok+" comptes)");
+    saveToLS();
+    syncToGist().then(ok=>{if(ok)modalLog("☁️ Synchronisé sur GitHub Gist","ok")});
     render();
 
   }catch(err){
@@ -905,11 +983,12 @@ async function collectX(){
       }
     }
 
-    saveToLS();
     setProgress(100);
     modalLog(`🏁 Import terminé : ${ok} entrées mises à jour, ${fail} échecs`,"ok");
     S.lastUpdate.x=now.toISOString().split("T")[0];
     S.imports.push(now.toISOString().split("T")[0]+" (X via Apify — "+ok+" comptes)");
+    saveToLS();
+    syncToGist().then(ok=>{if(ok)modalLog("☁️ Synchronisé sur GitHub Gist","ok")});
     render();
 
   }catch(err){
@@ -951,6 +1030,21 @@ function openUpdateModal(){
         </div>
         <div style="font-size:9px;color:var(--txm);margin-top:6px;letter-spacing:.04em">Stockée localement dans votre navigateur</div>
       </div>
+      <div style="margin-bottom:20px">
+        <div style="font-size:9px;color:var(--txm);text-transform:uppercase;letter-spacing:.12em;font-weight:600;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between">
+          <span>Sync GitHub Gist <span style="color:var(--txd);font-weight:500;text-transform:none;letter-spacing:0">(optionnel)</span></span>
+          <span style="font-family:var(--num);font-weight:500;text-transform:none;letter-spacing:0;color:${getGistId()?'#22c55e':'var(--txm)'}">${getGistId()?'● lié — '+getGistId().substring(0,8):'○ non configuré'}</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="password" id="gh-token-input" placeholder="github_pat_... (scope: gist)" value="${getGhToken()}"
+            style="flex:1;padding:10px 12px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:11px;font-family:var(--num);outline:none"
+            onfocus="this.style.borderColor='var(--ac)'" onblur="this.style.borderColor='var(--bd)'"
+            onchange="setGhToken(this.value)">
+          <button class="btn btn-sm" onclick="const i=document.getElementById('gh-token-input');i.type=i.type==='password'?'text':'password'">Voir</button>
+          <button class="btn btn-sm" onclick="manualSyncFromGist()" title="Récupérer depuis Gist">↓ Pull</button>
+        </div>
+        <div style="font-size:9px;color:var(--txm);margin-top:6px;letter-spacing:.04em">PAT GitHub avec scope <code style="font-family:var(--num)">gist</code>. Synchronise automatiquement vos données entre PCs après chaque collecte.</div>
+      </div>
       <div class="modal-grid">
         <button class="modal-btn" id="btn-ig" onclick="collectInstagram()">
           <span class="mbico" style="background:#E1306C;color:#fff">${SOC_ICONS.Instagram}</span>
@@ -987,6 +1081,8 @@ function closeUpdateModal(){
 // Init
 loadFromLS();
 render();
+// Pull from Gist (if configured) and re-render if remote is newer
+syncFromGist().then(updated=>{if(updated)render()});
 </script>
 </body>
 </html>
