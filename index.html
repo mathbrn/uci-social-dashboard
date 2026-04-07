@@ -8,19 +8,13 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --bg:#0a0a0b;--bgc:#111114;--bg2:#17171c;--bg3:#1d1d23;
-  --tx:#fafafa;--txm:#71717a;--txd:#a1a1aa;
-  --bd:#27272a;--bdH:#3f3f46;
-  --ac:#facc15;--acH:#fde047;--acD:#eab308;
-  --num:'JetBrains Mono',ui-monospace,monospace;
-}
-body.light{
   --bg:#fafafa;--bgc:#fff;--bg2:#f4f4f5;--bg3:#e4e4e7;
   --tx:#09090b;--txm:#71717a;--txd:#52525b;
   --bd:#e4e4e7;--bdH:#d4d4d8;
   --ac:#eab308;--acH:#ca8a04;--acD:#a16207;
+  --num:'JetBrains Mono',ui-monospace,monospace;
 }
-body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--tx);transition:background .3s,color .3s;-webkit-font-smoothing:antialiased;font-feature-settings:"cv11","ss01"}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--tx);-webkit-font-smoothing:antialiased;font-feature-settings:"cv11","ss01"}
 button{font-family:inherit;cursor:pointer;transition:all .15s;outline:none;letter-spacing:.01em}
 
 /* === HEADER === */
@@ -211,7 +205,7 @@ function gVal(md,s){
 }
 
 // ═══ STATE ═══
-let S={dk:true,gen:"men",tab:"courses",soc:"Overall",vw:"table",fil:"all",dt:{},imports:[],lastUpdate:{ig:null,fb:null,x:null,tk:null}};
+let S={gen:"men",tab:"courses",soc:"Overall",vw:"table",fil:"all",dt:{},imports:[],lastUpdate:{ig:null,fb:null,x:null,tk:null}};
 
 function loadFromLS(){
   try{const d=localStorage.getItem("uci-dash-v2");if(d)S.dt=JSON.parse(d)}catch{}
@@ -307,9 +301,6 @@ function render(){
         <button class="btn${S.gen==="men"?" on":""}" onclick="setS('gen','men')">Hommes</button>
         <button class="btn${S.gen==="women"?" on":""}" onclick="setS('gen','women')">Femmes</button>
       </div>
-      <button class="btn btn-icon" onclick="toggleDark()" title="${S.dk?"Mode clair":"Mode sombre"}">
-        ${S.dk?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>':'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>'}
-      </button>
     </div>
   </div>`;
 
@@ -394,7 +385,6 @@ function render(){
 }
 
 function setS(k,v){S[k]=v;render()}
-function toggleDark(){S.dk=!S.dk;document.body.className=S.dk?"":"light";render()}
 
 // ═══ APIFY COLLECTION ═══
 function getApifyToken(){return localStorage.getItem("uci-dash-apify-token")||""}
