@@ -4,75 +4,138 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>UCI Social Media Dashboard — 2026</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#0f172a;--bgc:#1e293b;--bg2:#162032;--tx:#e2e8f0;--txm:#64748b;--bd:#334155;--ac:#6366f1;--acH:#818cf8}
-body.light{--bg:#fff;--bgc:#f8fafc;--bg2:#f1f5f9;--tx:#1e293b;--txm:#94a3b8;--bd:#e2e8f0;--ac:#6366f1;--acH:#4f46e5}
-body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--tx);transition:background .3s,color .3s}
-button{font-family:inherit;cursor:pointer;transition:all .15s;outline:none}
-.btn{padding:6px 14px;font-size:12px;font-weight:500;border:1px solid var(--bd);border-radius:6px;background:transparent;color:var(--tx)}
-.btn:hover{border-color:var(--acH)}.btn.on{border-color:var(--ac);background:var(--ac);color:#fff;font-weight:700}
-.btn-sm{padding:4px 10px;font-size:11px}.btn-xs{padding:3px 8px;font-size:10px}
-.hdr{padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bd);flex-wrap:wrap;gap:10px}
-.logo{font-size:20px;font-weight:800;letter-spacing:-.5px}.logo b{color:var(--ac)}
-.yr{font-size:10px;font-weight:700;padding:2px 10px;border-radius:4px;background:var(--bgc);color:var(--txm);letter-spacing:1px;margin-left:10px}
-.ctrls{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.status-bar{padding:5px 24px;font-size:10px;background:var(--bgc)}
-.tabs{padding:0 24px;border-bottom:1px solid var(--bd);display:flex}
-.tab{padding:10px 20px;font-size:13px;font-weight:500;background:transparent;border:none;color:var(--txm);border-bottom:2px solid transparent}
-.tab:hover{color:var(--tx)}.tab.on{color:var(--tx);font-weight:700;border-bottom-color:var(--ac)}
-.bar{padding:12px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
-.content{padding:0 24px 24px}
-.tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--bd)}
+:root{
+  --bg:#0a0a0b;--bgc:#111114;--bg2:#17171c;--bg3:#1d1d23;
+  --tx:#fafafa;--txm:#71717a;--txd:#a1a1aa;
+  --bd:#27272a;--bdH:#3f3f46;
+  --ac:#facc15;--acH:#fde047;--acD:#eab308;
+  --num:'JetBrains Mono',ui-monospace,monospace;
+}
+body.light{
+  --bg:#fafafa;--bgc:#fff;--bg2:#f4f4f5;--bg3:#e4e4e7;
+  --tx:#09090b;--txm:#71717a;--txd:#52525b;
+  --bd:#e4e4e7;--bdH:#d4d4d8;
+  --ac:#eab308;--acH:#ca8a04;--acD:#a16207;
+}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--tx);transition:background .3s,color .3s;-webkit-font-smoothing:antialiased;font-feature-settings:"cv11","ss01"}
+button{font-family:inherit;cursor:pointer;transition:all .15s;outline:none;letter-spacing:.01em}
+
+/* === HEADER === */
+.hdr{padding:18px 32px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bd);flex-wrap:wrap;gap:14px;background:var(--bgc)}
+.brand{display:flex;align-items:center;gap:14px}
+.brand-mark{width:36px;height:36px;border-radius:2px;background:var(--ac);display:flex;align-items:center;justify-content:center;color:#000;font-weight:900;font-size:16px;letter-spacing:-1px;font-family:var(--num)}
+.brand-txt{display:flex;flex-direction:column;line-height:1.1}
+.brand-name{font-size:15px;font-weight:800;letter-spacing:-.02em;text-transform:uppercase}
+.brand-sub{font-size:9px;font-weight:500;color:var(--txm);letter-spacing:.18em;text-transform:uppercase;margin-top:2px}
+.ctrls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+/* === BUTTONS === */
+.btn{padding:8px 14px;font-size:11px;font-weight:600;border:1px solid var(--bd);background:transparent;color:var(--tx);text-transform:uppercase;letter-spacing:.06em;border-radius:2px}
+.btn:hover{border-color:var(--bdH);background:var(--bg2)}
+.btn.on{border-color:var(--ac);background:var(--ac);color:#000;font-weight:700}
+.btn-sm{padding:6px 11px;font-size:10px}
+.btn-xs{padding:4px 9px;font-size:9px}
+.btn-primary{background:var(--ac);color:#000;border-color:var(--ac);font-weight:700}
+.btn-primary:hover{background:var(--acH);border-color:var(--acH)}
+.btn-icon{display:inline-flex;align-items:center;gap:6px}
+.seg{display:inline-flex;border:1px solid var(--bd);border-radius:2px;overflow:hidden}
+.seg .btn{border:none;border-right:1px solid var(--bd);border-radius:0}
+.seg .btn:last-child{border-right:none}
+.seg .btn.on{border-color:var(--ac)}
+
+/* === STATUS === */
+.status-bar{padding:6px 32px;font-size:10px;background:var(--bgc);border-bottom:1px solid var(--bd);color:var(--txm);text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:8px}
+.status-bar::before{content:"";width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px #22c55e}
+
+/* === TABS === */
+.tabs{padding:0 32px;border-bottom:1px solid var(--bd);display:flex;background:var(--bgc)}
+.tab{padding:14px 22px;font-size:11px;font-weight:600;background:transparent;border:none;color:var(--txm);border-bottom:2px solid transparent;text-transform:uppercase;letter-spacing:.1em}
+.tab:hover{color:var(--tx)}
+.tab.on{color:var(--tx);border-bottom-color:var(--ac)}
+
+/* === BAR / FILTERS === */
+.bar{padding:16px 32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;background:var(--bg);border-bottom:1px solid var(--bd)}
+.bar-l,.bar-r{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.bar-label{font-size:9px;color:var(--txm);text-transform:uppercase;letter-spacing:.12em;font-weight:600;margin-right:4px}
+
+/* === CONTENT === */
+.content{padding:24px 32px}
+
+/* === TABLE === */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--bd);background:var(--bgc)}
 table{width:100%;border-collapse:collapse;font-size:12px}
-thead tr{background:var(--bgc)}
-th{padding:10px;font-size:10px;font-weight:700;color:var(--txm);text-transform:uppercase;letter-spacing:.5px}
-th:first-child{text-align:left;position:sticky;left:0;background:var(--bgc);z-index:2;min-width:270px}
+thead tr{background:var(--bg2);border-bottom:1px solid var(--bd)}
+th{padding:12px 14px;font-size:9px;font-weight:700;color:var(--txm);text-transform:uppercase;letter-spacing:.12em;border-bottom:1px solid var(--bd)}
+th:first-child{text-align:left;position:sticky;left:0;background:var(--bg2);z-index:2;min-width:280px;border-right:1px solid var(--bd)}
 th:not(:first-child){text-align:right}
-td{padding:8px 10px;text-align:right;font-variant-numeric:tabular-nums;border-bottom:1px solid var(--bd)}
-td:first-child{position:sticky;left:0;background:var(--bg);z-index:1;text-align:left}
+td{padding:11px 14px;text-align:right;font-variant-numeric:tabular-nums;border-bottom:1px solid var(--bd);font-family:var(--num);font-size:12px;font-weight:500;color:var(--txd)}
+td:first-child{position:sticky;left:0;background:var(--bgc);z-index:1;text-align:left;font-family:'Inter',sans-serif;border-right:1px solid var(--bd)}
 tbody tr:hover td{background:var(--bg2)}
-.ent{display:flex;align-items:center;gap:6px}
-.rank{font-size:10px;color:var(--txm);width:20px;text-align:right;font-weight:600}
-.cbar{width:4px;height:22px;border-radius:2px;flex-shrink:0}
-.flag{font-size:14px}.ename{font-weight:600;font-size:11.5px;white-space:nowrap}
-.badge{display:inline-block;font-size:8px;font-weight:700;padding:2px 6px;border-radius:3px;color:#fff;margin-left:5px;text-transform:uppercase}
-.empty{color:var(--txm)}
-.chart-box{background:var(--bgc);border-radius:10px;border:1px solid var(--bd);padding:20px}
-.chart-title{font-size:14px;font-weight:700;margin-bottom:16px}
-.chart-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-.chart-name{font-size:10px;width:170px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
-.chart-track{flex:1;height:24px;background:var(--bg);border-radius:5px;overflow:hidden}
-.chart-fill{height:100%;border-radius:5px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;transition:width .6s ease}
-.chart-val{font-size:9px;font-weight:700;color:#fff}
-.chart-val-out{font-size:9px;color:var(--txm);font-weight:600}
-.legend{margin-top:14px;padding:12px 16px;border-radius:10px;border:1px solid var(--bd);background:var(--bgc);font-size:10px;color:var(--txm);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
-.leg-i{display:flex;align-items:center;gap:4px}
-.leg-d{width:10px;height:10px;border-radius:2px;display:inline-block}
-.import-zone{border:2px dashed var(--bd);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:16px}
+tbody tr:hover td:first-child{background:var(--bg3)}
+tbody tr:last-child td{border-bottom:none}
+.ent{display:flex;align-items:center;gap:10px}
+.rank{font-size:10px;color:var(--txm);width:22px;text-align:right;font-weight:700;font-family:var(--num)}
+.cbar{width:3px;height:24px;flex-shrink:0}
+.flag{font-size:14px;display:flex;align-items:center}
+.ename{font-weight:600;font-size:12px;white-space:nowrap;color:var(--tx);letter-spacing:-.005em}
+.badge{display:inline-block;font-size:8px;font-weight:700;padding:3px 7px;color:#fff;margin-left:6px;text-transform:uppercase;letter-spacing:.08em;border-radius:1px}
+.empty{color:var(--bd)}
+
+/* === CHART === */
+.chart-box{background:var(--bgc);border:1px solid var(--bd);padding:24px}
+.chart-title{font-size:11px;font-weight:700;margin-bottom:20px;text-transform:uppercase;letter-spacing:.12em;color:var(--txm);display:flex;align-items:center;gap:10px}
+.chart-title::before{content:"";width:3px;height:14px;background:var(--ac)}
+.chart-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.chart-name{font-size:11px;width:180px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;color:var(--tx)}
+.chart-track{flex:1;height:26px;background:var(--bg2);overflow:hidden;border:1px solid var(--bd)}
+.chart-fill{height:100%;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;transition:width .8s cubic-bezier(.16,1,.3,1)}
+.chart-val{font-size:10px;font-weight:700;color:#fff;font-family:var(--num);text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.chart-val-out{font-size:10px;color:var(--txd);font-weight:700;font-family:var(--num);margin-left:4px}
+
+/* === LEGEND === */
+.legend{margin-top:16px;padding:14px 18px;border:1px solid var(--bd);background:var(--bgc);font-size:9px;color:var(--txm);display:flex;flex-wrap:wrap;gap:18px;align-items:center;text-transform:uppercase;letter-spacing:.1em;font-weight:600}
+.leg-i{display:flex;align-items:center;gap:6px}
+.leg-d{width:10px;height:10px;display:inline-block}
+
+/* === IMPORT ZONE === */
+.import-zone{border:1px dashed var(--bd);padding:48px 24px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:20px;background:var(--bgc)}
 .import-zone:hover{border-color:var(--ac);background:var(--bg2)}
-.import-zone.over{border-color:var(--ac);background:rgba(99,102,241,.1)}
-#fileInput{display:none}
-.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:100;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
-.modal{background:var(--bg);border:1px solid var(--bd);border-radius:14px;padding:28px;width:420px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.4)}
-.modal-title{font-size:16px;font-weight:700;margin-bottom:6px}
-.modal-sub{font-size:11px;color:var(--txm);margin-bottom:20px}
-.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.modal-btn{display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:10px;border:1px solid var(--bd);background:var(--bgc);color:var(--tx);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;flex-wrap:wrap}
-.modal-btn-date{width:100%;font-size:10px;font-weight:400;margin-top:2px}
-.modal-btn:hover:not(:disabled){border-color:var(--ac);background:var(--bg2);transform:translateY(-1px)}
-.modal-btn:disabled{opacity:.5;cursor:not-allowed}
-.modal-btn .mbico{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.modal-close{position:absolute;top:12px;right:16px;background:none;border:none;color:var(--txm);font-size:20px;cursor:pointer;padding:4px 8px}
+.import-zone-icon{width:48px;height:48px;margin:0 auto 14px;border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;color:var(--ac)}
+.import-zone-title{font-size:13px;font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em}
+.import-zone-sub{font-size:10px;color:var(--txm);letter-spacing:.04em}
+
+/* === MODAL === */
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.75);z-index:100;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px)}
+.modal{background:var(--bgc);border:1px solid var(--bd);padding:32px;width:460px;max-width:92vw;position:relative;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.modal-title{font-size:14px;font-weight:800;margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:10px}
+.modal-title::before{content:"";width:3px;height:16px;background:var(--ac)}
+.modal-sub{font-size:11px;color:var(--txm);margin-bottom:24px;line-height:1.5}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.modal-btn{display:flex;align-items:center;gap:12px;padding:16px 14px;border:1px solid var(--bd);background:var(--bg2);color:var(--tx);font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;flex-wrap:wrap;text-transform:uppercase;letter-spacing:.05em}
+.modal-btn-date{width:100%;font-size:9px;font-weight:500;margin-top:4px;text-transform:none;letter-spacing:0;font-family:var(--num)}
+.modal-btn:hover:not(:disabled){border-color:var(--ac);background:var(--bg3)}
+.modal-btn:disabled{opacity:.4;cursor:not-allowed}
+.modal-btn .mbico{width:30px;height:30px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.modal-close{position:absolute;top:14px;right:14px;background:none;border:none;color:var(--txm);font-size:18px;cursor:pointer;padding:6px 10px;line-height:1}
 .modal-close:hover{color:var(--tx)}
-.modal-status{margin-top:16px;padding:12px;border-radius:8px;font-size:11px;line-height:1.6;max-height:180px;overflow-y:auto;background:var(--bg2);border:1px solid var(--bd);display:none}
+.modal-status{margin-top:18px;padding:14px;font-size:10px;line-height:1.7;max-height:200px;overflow-y:auto;background:var(--bg);border:1px solid var(--bd);display:none;font-family:var(--num)}
 .modal-status.show{display:block}
-.modal-progress{width:100%;height:4px;border-radius:2px;background:var(--bd);margin-top:12px;overflow:hidden;display:none}
+.modal-progress{width:100%;height:2px;background:var(--bd);margin-top:14px;overflow:hidden;display:none}
 .modal-progress.show{display:block}
-.modal-progress-bar{height:100%;background:var(--ac);border-radius:2px;transition:width .3s;width:0}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.modal-progress-bar{height:100%;background:var(--ac);transition:width .3s;width:0}
+.modal input{font-family:var(--num)}
+
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 .collecting{animation:pulse 1.5s infinite}
+
+/* === SCROLLBAR === */
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--bd);border:2px solid var(--bg)}
+::-webkit-scrollbar-thumb:hover{background:var(--bdH)}
 </style>
 </head>
 <body>
@@ -228,42 +291,54 @@ function render(){
 
   let h=`
   <div class="hdr">
-    <div style="display:flex;align-items:center">
-      <span class="logo"><b>UCI</b> Social Media Dashboard</span><span class="yr">2026</span>
+    <div class="brand">
+      <div class="brand-mark">U</div>
+      <div class="brand-txt">
+        <span class="brand-name">UCI Social Dashboard</span>
+        <span class="brand-sub">WorldTour Season 2026</span>
+      </div>
     </div>
     <div class="ctrls">
-      <button class="btn" onclick="openUpdateModal()" style="display:flex;align-items:center;gap:5px">
-        🔄 Actualiser données
+      <button class="btn btn-primary btn-icon" onclick="openUpdateModal()">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M21 12a9 9 0 11-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+        Actualiser
       </button>
-      <div style="display:flex;border-radius:6px;overflow:hidden;border:1px solid var(--bd)">
-        <button class="btn${S.gen==="men"?" on":""}" onclick="setS('gen','men')" style="border-radius:6px 0 0 6px">♂ Hommes</button>
-        <button class="btn${S.gen==="women"?" on":""}" onclick="setS('gen','women')" style="border-radius:0 6px 6px 0">♀ Femmes</button>
+      <div class="seg">
+        <button class="btn${S.gen==="men"?" on":""}" onclick="setS('gen','men')">Hommes</button>
+        <button class="btn${S.gen==="women"?" on":""}" onclick="setS('gen','women')">Femmes</button>
       </div>
-      <button class="btn" onclick="toggleDark()">${S.dk?"☀️ Light":"🌙 Dark"}</button>
+      <button class="btn btn-icon" onclick="toggleDark()" title="${S.dk?"Mode clair":"Mode sombre"}">
+        ${S.dk?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>':'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>'}
+      </button>
     </div>
   </div>`;
 
   if(S.imports.length>0){
-    h+=`<div class="status-bar" style="color:#22c55e">✅ Dernière importation : ${S.imports[S.imports.length-1]}</div>`;
+    h+=`<div class="status-bar">Dernière mise à jour — ${S.imports[S.imports.length-1]}</div>`;
   }
 
   h+=`
   <div class="tabs">
-    <button class="tab${S.tab==="courses"?" on":""}" onclick="setS('tab','courses')">🏁 Courses</button>
-    <button class="tab${S.tab==="equipes"?" on":""}" onclick="setS('tab','equipes')">🚴 Équipes</button>
+    <button class="tab${S.tab==="courses"?" on":""}" onclick="setS('tab','courses')">Courses</button>
+    <button class="tab${S.tab==="equipes"?" on":""}" onclick="setS('tab','equipes')">Équipes</button>
   </div>
   <div class="bar">
-    <div style="display:flex;gap:4px">
-      ${SOCS.map(s=>`<button class="btn btn-sm${S.soc===s?" on":""}" onclick="setS('soc','${s}')" style="display:flex;align-items:center;gap:4px">${SOC_ICONS[s]||""}${s}</button>`).join("")}
+    <div class="bar-l">
+      <span class="bar-label">Réseau</span>
+      <div class="seg">
+        ${SOCS.map(s=>`<button class="btn btn-sm btn-icon${S.soc===s?" on":""}" onclick="setS('soc','${s}')">${SOC_ICONS[s]||""}${s}</button>`).join("")}
+      </div>
     </div>
-    <div style="display:flex;gap:4px;align-items:center">
+    <div class="bar-r">
       ${S.tab==="courses"?`
-        <span style="font-size:10px;color:var(--txm)">Filtrer :</span>
+        <span class="bar-label">Filtrer</span>
+        <div class="seg">
         ${[{k:"all",l:"Toutes"},{k:"gt",l:"Grands Tours"},{k:"stage",l:"Étapes"},{k:"oneday",l:"1 jour"}].map(f=>`<button class="btn btn-xs${S.fil===f.k?" on":""}" onclick="setS('fil','${f.k}')">${f.l}</button>`).join("")}
+        </div>
       `:""}
-      <div style="display:flex;border-radius:6px;overflow:hidden;border:1px solid var(--bd);margin-left:8px">
-        <button class="btn btn-xs${S.vw==="table"?" on":""}" onclick="setS('vw','table')" style="border-radius:6px 0 0 6px">📊 Tableau</button>
-        <button class="btn btn-xs${S.vw==="chart"?" on":""}" onclick="setS('vw','chart')" style="border-radius:0 6px 6px 0">📈 Évolution</button>
+      <div class="seg" style="margin-left:8px">
+        <button class="btn btn-xs${S.vw==="table"?" on":""}" onclick="setS('vw','table')">Tableau</button>
+        <button class="btn btn-xs${S.vw==="chart"?" on":""}" onclick="setS('vw','chart')">Évolution</button>
       </div>
     </div>
   </div>
@@ -271,10 +346,11 @@ function render(){
 
   if(!hasData){
     h+=`<div class="import-zone" onclick="openUpdateModal()">
-      <div style="font-size:32px;margin-bottom:8px">🔄</div>
-      <div style="font-size:14px;font-weight:600;margin-bottom:4px">Actualiser les données</div>
-      <div style="font-size:11px;color:var(--txm)">Cliquez pour collecter automatiquement les followers via l'API Apify</div>
-      <div style="font-size:10px;color:var(--txm);margin-top:8px">Instagram disponible — Facebook, X, TikTok bientôt</div>
+      <div class="import-zone-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path d="M21 12a9 9 0 11-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+      </div>
+      <div class="import-zone-title">Aucune donnée</div>
+      <div class="import-zone-sub">Cliquez pour collecter les followers via Apify</div>
     </div>`;
   }
 
@@ -293,7 +369,7 @@ function render(){
     const top=items.slice(0,10);
     const vals=top.map(it=>{let v=null;for(const mk of MKS){v=gVal(it._m[mk],S.soc);if(v)break}return{n:it.n,v:v||0,c:cM[it.n]||"#6366f1"}});
     const mx=Math.max(...vals.map(v=>v.v),1);
-    h+=`<div class="chart-box"><div class="chart-title">Classement — ${S.soc} — 2026 (Top 10)</div>`;
+    h+=`<div class="chart-box"><div class="chart-title">Classement Top 10 — ${S.soc} — Saison 2026</div>`;
     if(vals.every(v=>v.v===0)){
       h+=`<div style="color:var(--txm);font-size:12px;padding:30px;text-align:center">Aucune donnée. Cliquez sur "Actualiser données" pour collecter.</div>`;
     } else {
@@ -311,7 +387,7 @@ function render(){
       h+=`<div class="leg-i"><span class="leg-d" style="background:${c}"></span>${l}</div>`;
     });
   }
-  h+=`<div style="margin-left:auto;font-style:italic">Données exactes (non-arrondies) — collectées via API Apify</div></div>`;
+  h+=`<div style="margin-left:auto;letter-spacing:.08em">Source — API Apify</div></div>`;
   h+=`</div>`;
   app.innerHTML=h;
 
@@ -852,14 +928,15 @@ async function collectX(){
 }
 
 function fmtLastUpdate(dateStr){
-  if(!dateStr)return '<span style="color:var(--txm)">Jamais actualisé</span>';
+  if(!dateStr)return '<span style="color:var(--txm)">— jamais actualisé</span>';
   const d=new Date(dateStr);
   const mois=["janv.","fév.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
   const today=new Date();
   const sameMonth=d.getMonth()===today.getMonth()&&d.getFullYear()===today.getFullYear();
   const label=d.getDate()+" "+mois[d.getMonth()]+" "+d.getFullYear();
-  if(sameMonth) return '<span style="color:#22c55e">✅ '+label+'</span>';
-  return '<span style="color:#f59e0b">⏰ '+label+'</span>';
+  const dot='<span style="display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;vertical-align:middle;';
+  if(sameMonth) return dot+'background:#22c55e"></span><span style="color:#22c55e">À jour · '+label+'</span>';
+  return dot+'background:#f59e0b"></span><span style="color:#f59e0b">'+label+'</span>';
 }
 
 function openUpdateModal(){
@@ -868,16 +945,18 @@ function openUpdateModal(){
   <div class="modal-overlay" onclick="if(event.target===this)closeUpdateModal()">
     <div class="modal" style="position:relative">
       <button class="modal-close" onclick="closeUpdateModal()">✕</button>
-      <div class="modal-title">🔄 Actualiser les données</div>
+      <div class="modal-title">Actualiser les données</div>
       <div class="modal-sub">Saisissez votre clé API Apify puis cliquez sur un réseau social pour collecter les followers.</div>
-      <div style="margin-bottom:16px">
-        <div style="display:flex;gap:8px;align-items:center">
-          <input type="password" id="apify-token-input" placeholder="Clé API Apify (apify_api_...)" value="${getApifyToken()}"
-            style="flex:1;padding:8px 12px;border-radius:6px;border:1px solid var(--bd);background:var(--bg2);color:var(--tx);font-size:12px;font-family:monospace"
+      <div style="margin-bottom:20px">
+        <div style="font-size:9px;color:var(--txm);text-transform:uppercase;letter-spacing:.12em;font-weight:600;margin-bottom:6px">Clé API Apify</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="password" id="apify-token-input" placeholder="apify_api_..." value="${getApifyToken()}"
+            style="flex:1;padding:10px 12px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:11px;font-family:var(--num);outline:none"
+            onfocus="this.style.borderColor='var(--ac)'" onblur="this.style.borderColor='var(--bd)'"
             onchange="setApifyToken(this.value)">
-          <button class="btn btn-sm" onclick="const i=document.getElementById('apify-token-input');i.type=i.type==='password'?'text':'password'" style="font-size:10px">👁</button>
+          <button class="btn btn-sm" onclick="const i=document.getElementById('apify-token-input');i.type=i.type==='password'?'text':'password'">Voir</button>
         </div>
-        <div style="font-size:9px;color:var(--txm);margin-top:4px">Stockée localement dans votre navigateur uniquement</div>
+        <div style="font-size:9px;color:var(--txm);margin-top:6px;letter-spacing:.04em">Stockée localement dans votre navigateur</div>
       </div>
       <div class="modal-grid">
         <button class="modal-btn" id="btn-ig" onclick="collectInstagram()">
