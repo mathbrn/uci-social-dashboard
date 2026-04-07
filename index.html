@@ -347,6 +347,14 @@ function render(){
     </div>`;
   }
 
+  h+=`<div class="legend" style="margin-top:0;margin-bottom:16px">`;
+  if(S.tab==="courses"){
+    [["#ffd700","Tour de France"],["#ff69b4","Giro"],["#e53935","Vuelta"],["#7c3aed","Étapes (2.UWT)"],["#22c55e","1 jour (1.UWT)"]].forEach(([c,l])=>{
+      h+=`<div class="leg-i"><span class="leg-d" style="background:${c}"></span>${l}</div>`;
+    });
+  }
+  h+=`<div style="margin-left:auto;letter-spacing:.08em">Source — API Apify</div></div>`;
+
   if(S.vw==="table"){
     h+=`<div class="tbl-wrap"><table><thead><tr><th># ${S.tab==="courses"?"Course":"Équipe"}</th>`;
     h+=MOS.map(m=>`<th>${m}</th>`).join("");
@@ -374,13 +382,6 @@ function render(){
     h+=`</div>`;
   }
 
-  h+=`<div class="legend">`;
-  if(S.tab==="courses"){
-    [["#ffd700","Tour de France"],["#ff69b4","Giro"],["#e53935","Vuelta"],["#7c3aed","Étapes (2.UWT)"],["#22c55e","1 jour (1.UWT)"]].forEach(([c,l])=>{
-      h+=`<div class="leg-i"><span class="leg-d" style="background:${c}"></span>${l}</div>`;
-    });
-  }
-  h+=`<div style="margin-left:auto;letter-spacing:.08em">Source — API Apify</div></div>`;
   h+=`</div>`;
   app.innerHTML=h;
 
