@@ -1,216 +1,132 @@
-# UCI Instagram Tracker — Scripts locaux
+# UCI Social Dashboard — Scraper local
 
-Ce dossier contient deux scripts Python qui travaillent ensemble pour collecter les followers Instagram et les pousser automatiquement vers le dashboard UCI.
+Un seul script Python qui scrape les followers Instagram, Facebook et X pour les 95 équipes et courses UCI WorldTour 2026, puis écrit le résultat dans deux fichiers Excel.
 
-| Fichier | Rôle |
-|---|---|
-| `instagram_tracker.py` | Script de scraping. Parcourt les 71 comptes Instagram via Playwright et récupère le **nombre exact** (non arrondi) de followers. Sauvegarde en Excel et pousse dans le Gist GitHub du dashboard. |
-| `tracker_server.py` | Mini serveur HTTP local (sur `http://127.0.0.1:8765`). Permet au bouton "Instagram" du dashboard de déclencher `instagram_tracker.py` en un clic. |
+**Workflow en deux étapes :**
+1. Vous lancez `scrape_to_excel.py` (~5 minutes)
+2. Vous cliquez sur "Importer Excel" dans le dashboard → vous voyez les chiffres
 
-**Coût : 0 €** — Tout est local et gratuit, pas d'API payante.
-
----
-
-## 🎯 Comment ça marche
-
-Le dashboard est hébergé sur GitHub Pages et ne peut pas lancer directement des programmes sur votre PC (sécurité du navigateur). On contourne ce problème avec un petit serveur HTTP local :
-
-```
-[Dashboard UCI sur mathbrn.github.io]
-         │
-         │  1. Clic sur "Instagram"
-         │  2. fetch http://127.0.0.1:8765/scrape/instagram
-         ▼
-[tracker_server.py — en tâche de fond sur votre PC]
-         │
-         │  3. Lance instagram_tracker.py
-         │  4. Scrape les 71 comptes via Playwright
-         │  5. Pousse les données vers le Gist public
-         ▼
-[Gist GitHub public]
-         │
-         │  6. Le dashboard recharge le Gist
-         ▼
-[Vous + vos collègues voient les nouvelles données]
-```
-
-**Ce que vos collègues voient** : ils n'ont rien à installer. Ils ouvrent simplement le dashboard et voient les données à jour. Seul le PC de la personne qui collecte (vous) doit faire tourner le serveur local.
+**Coût : 0 €.** Aucune API, aucune clé, aucun compte. Tout est local.
 
 ---
 
-## 📥 Installation (une seule fois)
+## Installation (une fois)
 
 ### 1. Installer Python
 
-1. Allez sur [python.org/downloads](https://www.python.org/downloads/) (**PAS** le Microsoft Store)
-2. Cliquez sur le bouton jaune **"Download Python 3.x.x"**
-3. Lancez le fichier téléchargé
-4. **IMPORTANT** : cochez la case **"Add python.exe to PATH"** en bas de la première fenêtre
-5. Cliquez sur **"Install Now"**
-6. À la fin, cliquez sur **"Disable path length limit"** si proposé
+1. Allez sur [python.org/downloads](https://www.python.org/downloads/) (**pas** le Microsoft Store)
+2. Cliquez sur **"Download Python 3.x.x"**
+3. Lancez l'installateur
+4. **Cochez la case "Add python.exe to PATH"** sur le premier écran
+5. Cliquez sur **Install Now**
 
-### 2. Installer les librairies
+### 2. Installer les dépendances
 
-Ouvrez une **Invite de commandes** (tapez "cmd" dans la barre de recherche Windows) et lancez ces 3 commandes, une par une :
+Ouvrez une **Invite de commandes** (tapez "cmd" dans la barre de recherche) et lancez :
 
 ```
-pip install playwright
-pip install openpyxl
+pip install playwright openpyxl
 python -m playwright install chromium
 ```
 
-### 3. Télécharger les scripts
+La dernière commande télécharge un Chromium léger (~200 Mo). Si votre IT bloque ce téléchargement, parlez-en-leur — il n'y a pas d'alternative locale.
 
-1. Créez un dossier sur votre Bureau, par exemple : **Trackers**
-2. Téléchargez ces deux fichiers depuis le repo GitHub et placez-les dans le dossier :
-   - `instagram_tracker.py`
-   - `tracker_server.py`
+### 3. Récupérer le script
 
-### 4. Configurer les variables pour le Gist
-
-Pour que le script pousse les données vers le dashboard, il lui faut deux infos :
-- `UCI_GIST_ID` — l'ID du Gist public créé par le dashboard
-- `UCI_GIST_TOKEN` — votre PAT GitHub avec scope `gist`
-
-Créez un fichier `start_server.bat` à côté des scripts, avec ce contenu (remplacez les valeurs) :
-
-```bat
-@echo off
-set UCI_GIST_ID=votre-gist-id-ici
-set UCI_GIST_TOKEN=github_pat_xxxxxxxxxxxxxxxxxx
-cd /d "%~dp0"
-python tracker_server.py
-pause
-```
-
-> 💡 Pour retrouver votre `UCI_GIST_ID` : ouvrez [gist.github.com](https://gist.github.com) connecté avec votre compte, le Gist s'appelle "UCI Social Dashboard data sync". L'ID est la chaîne qui apparaît dans l'URL après votre nom d'utilisateur.
+Téléchargez le fichier `scrape_to_excel.py` depuis le repo et placez-le dans un dossier de votre choix, par exemple `C:\Users\VOTRE_NOM\Desktop\UCI_Tracker\`.
 
 ---
 
-## ▶️ Utilisation au quotidien
+## Utilisation
 
-### Lancer le serveur
+### Lancer la collecte
 
-Double-cliquez sur `start_server.bat`. Une fenêtre console s'ouvre et affiche :
+Dans une Invite de commandes :
 
 ```
-============================================================
-🚴  UCI Tracker Server v1.0.0
-============================================================
-📂 Répertoire            : C:\Users\...\Desktop\Trackers
-🐍 Tracker Python        : instagram_tracker.py ✅
-🌐 URL locale            : http://127.0.0.1:8765
-☁️  Gist ID               : abcdef1234...
-🔑 PAT GitHub            : défini ✅
-============================================================
-✨ Serveur prêt. Ouvrez le dashboard et cliquez sur Instagram.
-   (Ctrl+C pour arrêter.)
+cd C:\Users\VOTRE_NOM\Desktop\UCI_Tracker
+python scrape_to_excel.py
 ```
 
-**Laissez cette fenêtre ouverte** — tant qu'elle tourne, le dashboard peut déclencher des collectes.
+Le script affiche en temps réel chaque compte scrappé. À la fin (environ 5 minutes), deux fichiers Excel sont créés/mis à jour dans le même dossier :
 
-### Déclencher une collecte depuis le dashboard
+- **`uci_equipes.xlsx`** — 2 feuilles : `Hommes`, `Femmes`
+- **`uci_courses.xlsx`** — 2 feuilles : `Hommes`, `Femmes`
 
-1. Ouvrez le dashboard : https://mathbrn.github.io/uci-social-dashboard/
-2. Cliquez sur **"Actualiser"**
-3. Sous le bouton Instagram, vous verrez **● Serveur local détecté** (point vert)
-4. Cliquez sur **Instagram**
-5. Le log du modal affiche les lignes en temps réel (chaque compte scrapé + son nombre de followers)
-6. ~90 secondes plus tard : "🏁 Terminé" et le dashboard est automatiquement mis à jour
+Chaque feuille a cette structure :
 
-Un fichier `historique_followers.xlsx` est également créé/mis à jour dans le dossier Trackers pour garder un historique local.
+| Nom | Pays/Classe | Réseau | Avril 2026 | Mai 2026 | Juin 2026 | … |
+|---|---|---|---|---|---|---|
+| Tour de France | 2.UWT | Instagram | 6 523 456 | | | |
+| Tour de France | 2.UWT | Facebook | 3 412 789 | | | |
+| Tour de France | 2.UWT | X (Twitter) | 1 234 567 | | | |
+| … | | | | | | |
 
-### Utiliser le script sans dashboard (mode direct)
+À chaque nouveau run, seule la colonne du **mois courant** est mise à jour. Les colonnes des mois précédents sont préservées → vous construisez un historique mois par mois.
 
-Vous pouvez aussi lancer le scraping sans passer par le dashboard. Double-cliquez sur un second batch (ou ajoutez ceci à `start_server.bat` à la place de la dernière ligne) :
+### Importer dans le dashboard
 
-```bat
-python instagram_tracker.py
-```
+1. Ouvrez [le dashboard](https://mathbrn.github.io/uci-social-dashboard/)
+2. Cliquez sur **"Importer Excel"** (en haut à droite)
+3. Cliquez sur **"Choisir les fichiers Excel…"**
+4. Sélectionnez `uci_equipes.xlsx` et `uci_courses.xlsx` (Ctrl+clic pour sélectionner les deux)
+5. Le log affiche combien de valeurs ont été importées
+6. Fermez la fenêtre — les chiffres apparaissent dans le tableau
+
+Les données sont stockées dans le `localStorage` de votre navigateur. Un collègue qui ouvre le dashboard verra les mêmes chiffres si vous lui envoyez les 2 fichiers Excel (par mail, partage réseau, etc.) et qu'il fait l'import de son côté.
+
+### Partager avec les collègues via le réseau ASO
+
+La méthode la plus simple :
+
+1. Copiez `uci_equipes.xlsx` et `uci_courses.xlsx` sur un dossier du partage réseau ASO, par exemple `\\ASO92PRDDATA\Etudes\UCI_Dashboard\`
+2. Envoyez à vos collègues le lien du dashboard + le chemin du dossier réseau
+3. Ils ouvrent le dashboard, cliquent "Importer Excel", naviguent vers le partage réseau, sélectionnent les 2 fichiers → ils voient les mêmes chiffres que vous
 
 ---
 
-## 🚀 Démarrage automatique au login Windows
+## Automatiser la collecte chaque semaine
 
-Pour ne plus avoir à lancer `start_server.bat` manuellement à chaque démarrage de votre PC :
+Pour que le script tourne tout seul une fois par semaine (par exemple le lundi matin) :
 
-### Méthode 1 — Dossier Démarrage (simple)
+1. Tapez **"Planificateur de tâches"** dans la barre de recherche Windows
+2. **Créer une tâche de base**
+3. Nom : `UCI Scraper`
+4. Déclencheur : **Hebdomadaire**, choisissez le jour et l'heure
+5. Action : **Démarrer un programme**
+   - Programme/script : `python`
+   - Arguments : `scrape_to_excel.py`
+   - Commencer dans : `C:\Users\VOTRE_NOM\Desktop\UCI_Tracker`
 
-1. Appuyez sur **Win + R**
-2. Tapez `shell:startup` et Entrée
-3. Un dossier s'ouvre — copiez-y un **raccourci** vers `start_server.bat` (clic droit sur le .bat → Créer un raccourci, puis déplacez le raccourci dans le dossier Démarrage)
-
-Le serveur démarrera automatiquement à chaque ouverture de session Windows.
-
-### Méthode 2 — Planificateur de tâches (plus propre, sans fenêtre visible)
-
-1. Tapez **"Planificateur de tâches"** dans la barre de recherche
-2. Cliquez sur **"Créer une tâche de base"**
-3. Nom : `UCI Tracker Server`
-4. Déclencheur : **"Quand j'ouvre une session"**
-5. Action : **"Démarrer un programme"**
-   - **Programme/script** : `C:\Users\VOTRE_NOM\Desktop\Trackers\start_server.bat`
-6. Dans les propriétés avancées : cochez **"Masqué"** si vous voulez que la fenêtre ne s'affiche pas
+Le script tournera automatiquement et mettra à jour les 2 fichiers Excel. Il ne vous restera qu'à les importer dans le dashboard quand vous voudrez voir les derniers chiffres.
 
 ---
 
-## 🔧 Dépannage
-
-### Le dashboard affiche "● Serveur local absent"
-
-Le serveur n'est pas lancé ou n'est pas atteignable.
-- Vérifiez que `start_server.bat` tourne bien (une fenêtre console ouverte)
-- Vérifiez que le port 8765 n'est pas bloqué par le pare-feu Windows (au premier lancement, Windows demande une autorisation — acceptez "Réseaux privés")
-- Testez manuellement dans votre navigateur : ouvrez `http://127.0.0.1:8765/status`, vous devriez voir `{"status":"ok",...}`
+## Dépannage
 
 ### "python n'est pas reconnu"
-
-Python n'est pas dans le PATH. Désinstallez-le depuis **Paramètres → Applications**, puis réinstallez-le en cochant bien **"Add python.exe to PATH"** à la première étape.
-
-### Playwright ne s'installe pas
-
-- Lancez toujours `python -m playwright install chromium` avec `python -m` devant
-- Si vous êtes sur un PC d'entreprise avec un proxy, il se peut que le téléchargement soit bloqué — contactez votre IT ou essayez depuis chez vous d'abord
+Désinstallez Python depuis Paramètres → Applications, puis réinstallez-le en cochant bien **"Add python.exe to PATH"**.
 
 ### Beaucoup de comptes affichent N/A
+Les sites bloquent parfois le scraping automatisé. Dans le script, cherchez la ligne `HEADLESS = True` et remplacez-la par `HEADLESS = False` → vous verrez le navigateur s'ouvrir et pourrez identifier ce qui bloque (captcha, login wall…).
 
-Instagram bloque peut-être le scraping en mode headless. Ouvrez `instagram_tracker.py` avec le Bloc-notes et changez :
-```python
-HEADLESS = True
-```
-en :
-```python
-HEADLESS = False
-```
-Vous verrez le navigateur s'ouvrir pendant la collecte et pourrez identifier le blocage (login wall, captcha, etc.).
+### X (Twitter) renvoie N/A pour tous les comptes
+X est le réseau le plus agressif contre le scraping. Le script tente d'abord les miroirs nitter.net, puis x.com en fallback. Si les nitter sont down et que x.com bloque, X sera indisponible. Dans ce cas, relancez plus tard ou ignorez X pour ce mois-ci — le dashboard gère les valeurs manquantes sans problème.
 
-### Les chiffres sont arrondis (ex: 1.5M au lieu de 1 523 456)
+### Le bouton "Importer Excel" du dashboard ne réagit pas
+Vérifiez que SheetJS est bien chargé (ouvrez la console DevTools avec F12 et tapez `XLSX`). Si c'est `undefined`, votre pare-feu bloque peut-être les CDN externes. Dans ce cas, téléchargez `xlsx.full.min.js` depuis [jsdelivr.net](https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js) et servez-le localement.
 
-Le script est configuré pour refuser les arrondis : si aucune stratégie d'extraction exacte ne fonctionne, il renvoie N/A plutôt qu'un chiffre arrondi. Si cela arrive souvent :
-- Instagram a peut-être changé son HTML — ouvrez une issue sur le repo
-- Essayez en mode non-headless pour voir ce que retourne la page
-
-### Erreur CORS dans la console du navigateur
-
-Le serveur autorise `https://mathbrn.github.io`. Si vous utilisez une autre URL (par exemple, vous hébergez le dashboard ailleurs), modifiez la constante `ALLOWED_ORIGINS` dans `tracker_server.py`.
+### Les chiffres sont arrondis
+Le script est conçu pour refuser les arrondis — il parse directement les JSON inline des pages pour obtenir les nombres exacts. Si un arrondi apparaît, c'est un bug : ouvrez une issue sur le repo.
 
 ---
 
-## 🔍 Vérifier qu'une donnée est correcte
+## Ajouter/modifier un compte à suivre
 
-Après une collecte, vous pouvez :
-1. Ouvrir `historique_followers.xlsx` pour voir l'historique complet
-2. Comparer avec Instagram directement (aller sur un profil, cliquer sur "Followers" → le nombre exact s'affiche dans la modale)
-3. Le script essaie dans l'ordre : `edge_followed_by.count` (exact), `follower_count` (exact), `userInteractionCount` en JSON-LD (exact), puis l'attribut `title` d'un lien `/followers/` (exact). Il ne tombe **jamais** sur une valeur arrondie.
-
----
-
-## 📝 Ajouter un nouveau compte à suivre
-
-Ouvrez `instagram_tracker.py` et trouvez la section `ENTITIES`. Ajoutez une entrée :
+Ouvrez `scrape_to_excel.py` avec le Bloc-notes et trouvez les listes `TEAMS_MEN`, `TEAMS_WOMEN`, `RACES_MEN`, `RACES_WOMEN`. Ajoutez une ligne :
 
 ```python
-{"nom": "Mon Équipe", "cl": "France", "ig": "nom_du_compte_ig"},
+("Mon Équipe", "France", "mon_compte_ig", "MaPageFB", "MonHandleX"),
 ```
 
-Placez-la dans la bonne section (Équipes hommes / Équipes femmes / Courses hommes / Courses femmes). Si vous voulez aussi que ce compte apparaisse dans le dashboard, ajoutez-le également dans `index.html` (arrays `TM`, `TW`, `RM`, `RW`).
+Si vous voulez aussi qu'elle apparaisse dans le dashboard, ajoutez-la également dans `index.html` (arrays `TM`, `TW`, `RM`, `RW`).

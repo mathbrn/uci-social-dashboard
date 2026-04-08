@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>UCI Social Media Dashboard — 2026</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -206,142 +207,15 @@ function gVal(md,s){
 }
 
 // ═══ STATE ═══
-let S={gen:"men",tab:"courses",soc:"Overall",vw:"table",fil:"all",dt:{},imports:[],lastUpdate:{ig:null,fb:null,x:null,tk:null}};
+let S={gen:"men",tab:"courses",soc:"Overall",vw:"table",fil:"all",dt:{},lastImport:null};
 
 function loadFromLS(){
   try{const d=localStorage.getItem("uci-dash-v2");if(d)S.dt=JSON.parse(d)}catch{}
-  try{const u=localStorage.getItem("uci-dash-lastup");if(u)S.lastUpdate=JSON.parse(u)}catch{}
-  try{const i=localStorage.getItem("uci-dash-imports");if(i)S.imports=JSON.parse(i)}catch{}
-  // Auto-detect last update from existing data if not yet tracked
-  if(!S.lastUpdate.ig||!S.lastUpdate.fb||!S.lastUpdate.x){
-    const months=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
-    let latestIG=null,latestFB=null,latestX=null;
-    for(const key of Object.keys(S.dt)){
-      for(let m=months.length-1;m>=0;m--){
-        const mk=months[m];
-        const cell=S.dt[key]?.[mk];
-        if(!cell)continue;
-        if(cell.ig!=null&&(!latestIG||m>months.indexOf(latestIG)))latestIG=mk;
-        if(cell.fb!=null&&(!latestFB||m>months.indexOf(latestFB)))latestFB=mk;
-        if(cell.x!=null&&(!latestX||m>months.indexOf(latestX)))latestX=mk;
-      }
-    }
-    const yr=new Date().getFullYear();
-    if(latestIG&&!S.lastUpdate.ig){const mi=months.indexOf(latestIG);S.lastUpdate.ig=yr+"-"+String(mi+1).padStart(2,"0")+"-01"}
-    if(latestFB&&!S.lastUpdate.fb){const mi=months.indexOf(latestFB);S.lastUpdate.fb=yr+"-"+String(mi+1).padStart(2,"0")+"-01"}
-    if(latestX&&!S.lastUpdate.x){const mi=months.indexOf(latestX);S.lastUpdate.x=yr+"-"+String(mi+1).padStart(2,"0")+"-01"}
-    saveToLS();
-  }
+  try{const li=localStorage.getItem("uci-dash-lastimport");if(li)S.lastImport=li}catch{}
 }
 function saveToLS(){
   try{localStorage.setItem("uci-dash-v2",JSON.stringify(S.dt))}catch{}
-  try{localStorage.setItem("uci-dash-lastup",JSON.stringify(S.lastUpdate))}catch{}
-  try{localStorage.setItem("uci-dash-imports",JSON.stringify(S.imports))}catch{}
-}
-
-// ═══ GITHUB GIST SYNC ═══
-// PUBLIC_GIST_ID is hardcoded so any visitor (without PAT) can read shared
-// data via GitHub's anonymous API. Set this AFTER creating the gist on first
-// collection — see modalLog instructions in syncToGist().
-const PUBLIC_GIST_ID="";
-const GIST_FILENAME="uci-dashboard-data.json";
-function getGhToken(){return localStorage.getItem("uci-dash-gh-token")||""}
-function setGhToken(t){localStorage.setItem("uci-dash-gh-token",t)}
-function getGistId(){return localStorage.getItem("uci-dash-gist-id")||PUBLIC_GIST_ID||""}
-function setGistId(id){localStorage.setItem("uci-dash-gist-id",id)}
-function getLocalUpdatedAt(){return localStorage.getItem("uci-dash-updatedat")||""}
-function setLocalUpdatedAt(t){localStorage.setItem("uci-dash-updatedat",t)}
-
-async function syncFromGist(){
-  const gistId=getGistId();
-  if(!gistId)return false;
-  const token=getGhToken();
-  try{
-    const headers={Accept:"application/vnd.github+json"};
-    if(token)headers.Authorization=`token ${token}`;
-    const r=await fetch(`https://api.github.com/gists/${gistId}`,{headers});
-    if(!r.ok)return false;
-    const gist=await r.json();
-    const file=gist.files&&gist.files[GIST_FILENAME];
-    if(!file||!file.content)return false;
-    const remote=JSON.parse(file.content);
-    if(!remote.updatedAt)return false;
-    const localTs=getLocalUpdatedAt();
-    if(localTs&&new Date(remote.updatedAt)<=new Date(localTs))return false;
-    S.dt=remote.dt||{};
-    S.lastUpdate=remote.lastUpdate||{ig:null,fb:null,x:null,tk:null};
-    S.imports=remote.imports||[];
-    saveToLS();
-    setLocalUpdatedAt(remote.updatedAt);
-    return true;
-  }catch(e){console.warn("syncFromGist failed",e);return false}
-}
-
-async function manualSyncFromGist(){
-  if(!getGistId()){alert("Aucun Gist lié pour le moment. Lancez d'abord une collecte avec votre PAT pour créer le Gist.");return}
-  modalLog("☁️ Récupération depuis le Gist...");
-  const updated=await syncFromGist();
-  if(updated){modalLog("✅ Données récupérées depuis le Gist","ok");render();openUpdateModal()}
-  else modalLog("ℹ️ Aucune mise à jour à récupérer (local déjà à jour)","warn");
-}
-
-async function syncToGist(){
-  const token=getGhToken();
-  if(!token)return false;
-  const updatedAt=new Date().toISOString();
-  const payload={dt:S.dt,lastUpdate:S.lastUpdate,imports:S.imports,updatedAt};
-  const fileContent=JSON.stringify(payload,null,2);
-  let gistId=localStorage.getItem("uci-dash-gist-id")||"";
-  try{
-    let r;
-    if(!gistId){
-      // Create as PUBLIC so colleagues without PAT can read it
-      r=await fetch("https://api.github.com/gists",{
-        method:"POST",
-        headers:{Authorization:`token ${token}`,Accept:"application/vnd.github+json","Content-Type":"application/json"},
-        body:JSON.stringify({description:"UCI Social Dashboard data sync (public read)",public:true,files:{[GIST_FILENAME]:{content:fileContent}}})
-      });
-      if(!r.ok)throw new Error("Création Gist échouée ("+r.status+")");
-      const gist=await r.json();
-      setGistId(gist.id);
-      modalLog(`☁️ Gist PUBLIC créé : ${gist.id}`,"ok");
-      modalLog(`👉 Pour partager avec vos collègues : copiez cet ID dans la constante PUBLIC_GIST_ID du fichier index.html, commit + push.`,"warn");
-      modalLog(`🔗 URL : ${gist.html_url}`,"ok");
-    }else{
-      r=await fetch(`https://api.github.com/gists/${gistId}`,{
-        method:"PATCH",
-        headers:{Authorization:`token ${token}`,Accept:"application/vnd.github+json","Content-Type":"application/json"},
-        body:JSON.stringify({files:{[GIST_FILENAME]:{content:fileContent}}})
-      });
-      if(!r.ok)throw new Error("Mise à jour Gist échouée ("+r.status+")");
-    }
-    setLocalUpdatedAt(updatedAt);
-    return true;
-  }catch(e){console.warn("syncToGist failed",e);return false}
-}
-
-function importJSON(json){
-  const mk=json.month;
-  if(!mk)return;
-  for(const[key,entry] of Object.entries(json.data)){
-    // Match by ig_username to dashboard entities
-    const ig=entry.ig_username;
-    const count=entry.ig_followers;
-    if(!ig||count==null)continue;
-    // Find all entities with this ig username
-    for(const list of[TM,TW,RM,RW]){
-      for(const e of list){
-        if(e.ig===ig){
-          const k=e.n+"|"+(e.cl||e.co);
-          if(!S.dt[k])S.dt[k]={};
-          if(!S.dt[k][mk])S.dt[k][mk]={};
-          S.dt[k][mk].ig=count;
-        }
-      }
-    }
-  }
-  S.imports.push(json.date+" ("+json.stats.success+" comptes)");
-  saveToLS();
+  try{if(S.lastImport)localStorage.setItem("uci-dash-lastimport",S.lastImport)}catch{}
 }
 
 function getItems(){
@@ -379,8 +253,8 @@ function render(){
     </div>
     <div class="ctrls">
       <button class="btn btn-primary btn-icon" onclick="openUpdateModal()">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M21 12a9 9 0 11-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
-        Actualiser
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Importer Excel
       </button>
       <div class="seg">
         <button class="btn${S.gen==="men"?" on":""}" onclick="setS('gen','men')">Hommes</button>
@@ -389,8 +263,8 @@ function render(){
     </div>
   </div>`;
 
-  if(S.imports.length>0){
-    h+=`<div class="status-bar">Dernière mise à jour — ${S.imports[S.imports.length-1]}</div>`;
+  if(S.lastImport){
+    h+=`<div class="status-bar">Dernière importation — ${S.lastImport}</div>`;
   }
 
   h+=`
@@ -426,7 +300,7 @@ function render(){
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path d="M21 12a9 9 0 11-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
       </div>
       <div class="import-zone-title">Aucune donnée</div>
-      <div class="import-zone-sub">Cliquez pour collecter les followers via Apify</div>
+      <div class="import-zone-sub">Cliquez pour importer les fichiers Excel générés par le script</div>
     </div>`;
   }
 
@@ -436,7 +310,7 @@ function render(){
       h+=`<div class="leg-i"><span class="leg-d" style="background:${c}"></span>${l}</div>`;
     });
   }
-  h+=`<div style="margin-left:auto;letter-spacing:.08em">Source — API Apify</div></div>`;
+  h+=`<div style="margin-left:auto;letter-spacing:.08em">Source — Scraping Playwright local</div></div>`;
 
   if(S.vw==="table"){
     h+=`<div class="tbl-wrap"><table><thead><tr><th># ${S.tab==="courses"?"Course":"Équipe"}</th>`;
@@ -455,7 +329,7 @@ function render(){
     const mx=Math.max(...vals.map(v=>v.v),1);
     h+=`<div class="chart-box"><div class="chart-title">Classement Top 10 — ${S.soc} — Saison 2026</div>`;
     if(vals.every(v=>v.v===0)){
-      h+=`<div style="color:var(--txm);font-size:12px;padding:30px;text-align:center">Aucune donnée. Cliquez sur "Actualiser données" pour collecter.</div>`;
+      h+=`<div style="color:var(--txm);font-size:12px;padding:30px;text-align:center">Aucune donnée. Cliquez sur "Importer Excel" pour charger les fichiers.</div>`;
     } else {
       vals.forEach(v=>{
         const pct=(v.v/mx*100);
@@ -472,497 +346,130 @@ function render(){
 
 function setS(k,v){S[k]=v;render()}
 
-// ═══ APIFY COLLECTION ═══
-function getApifyToken(){return localStorage.getItem("uci-dash-apify-token")||""}
-function setApifyToken(t){localStorage.setItem("uci-dash-apify-token",t)}
-let _collecting=false;
+// ═══ EXCEL IMPORT ═══
+// Uses SheetJS (loaded from CDN) to parse the 2 xlsx files produced by
+// scripts/scrape_to_excel.py, then merges into S.dt.
 
-// Fetch with retry (handles transient network errors)
-async function fetchRetry(url,opts={},retries=3){
-  for(let i=0;i<retries;i++){
+const MOIS_MAP={
+  "janvier":"jan","fevrier":"feb","février":"feb","mars":"mar","avril":"apr",
+  "mai":"may","juin":"jun","juillet":"jul","aout":"aug","août":"aug",
+  "septembre":"sep","octobre":"oct","novembre":"nov","decembre":"dec","décembre":"dec"
+};
+function parseMonthHeader(h){
+  if(!h||typeof h!=="string")return null;
+  // "Avril 2026" → "apr"
+  const parts=h.toLowerCase().trim().split(/\s+/);
+  const mk=MOIS_MAP[parts[0]];
+  return mk||null;
+}
+
+function normName(s){
+  return String(s||"").toLowerCase().replace(/[\u00C0-\u017F]/g,c=>({"à":"a","â":"a","é":"e","è":"e","ê":"e","ë":"e","î":"i","ï":"i","ô":"o","ö":"o","ù":"u","û":"u","ç":"c","ñ":"n"})[c]||c).replace(/[^a-z0-9]/g,"");
+}
+
+function findEntityKey(name, classe, list){
+  const nn=normName(name);
+  for(const e of list){
+    if(normName(e.n)===nn){
+      return e.n+"|"+(e.cl||e.co);
+    }
+  }
+  return null;
+}
+
+function parseSheetIntoDt(ws, entityList){
+  // ws is a SheetJS worksheet
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+  if(rows.length<2)return 0;
+  const header=rows[0];
+  // Expected: [Nom, Pays/Classe, Réseau, <Mois1>, <Mois2>, ...]
+  // Find column positions
+  const nameCol=0, classCol=1, netCol=2;
+  const monthCols=[]; // [(colIndex, monthKey)]
+  for(let c=3;c<header.length;c++){
+    const mk=parseMonthHeader(header[c]);
+    if(mk) monthCols.push([c,mk]);
+  }
+  if(monthCols.length===0)return 0;
+
+  let imported=0;
+  for(let r=1;r<rows.length;r++){
+    const row=rows[r];
+    const name=row[nameCol];
+    const net=row[netCol];
+    if(!name||!net)continue;
+    const netKey=({Instagram:"ig",Facebook:"fb","X (Twitter)":"x",X:"x",TikTok:"tk"})[String(net).trim()];
+    if(!netKey)continue;
+    const key=findEntityKey(name, row[classCol], entityList);
+    if(!key)continue;
+    if(!S.dt[key])S.dt[key]={};
+    for(const [cIdx,mk] of monthCols){
+      const v=row[cIdx];
+      if(v===null||v===undefined||v==="")continue;
+      const n=typeof v==="number"?v:parseInt(String(v).replace(/[^\d]/g,""),10);
+      if(!isNaN(n)&&n>0){
+        if(!S.dt[key][mk])S.dt[key][mk]={};
+        S.dt[key][mk][netKey]=n;
+        imported++;
+      }
+    }
+  }
+  return imported;
+}
+
+async function handleExcelFiles(fileList){
+  if(!fileList||fileList.length===0)return;
+  const logEl=document.getElementById("import-log");
+  const log=(msg,cls="")=>{
+    if(logEl){const div=document.createElement("div");div.textContent=msg;if(cls)div.style.color=cls;logEl.appendChild(div);logEl.scrollTop=logEl.scrollHeight}
+  };
+  if(typeof XLSX==="undefined"){
+    log("❌ SheetJS non chargé — vérifiez votre connexion Internet","#ef4444");
+    return;
+  }
+
+  let totalImported=0, filesProcessed=0;
+  for(const file of fileList){
+    log(`📄 Lecture de ${file.name}...`);
     try{
-      const r=await fetch(url,opts);
-      return r;
-    }catch(e){
-      if(i===retries-1)throw e;
-      modalLog(`⚠️ Erreur réseau, nouvelle tentative (${i+2}/${retries})...`,"warn");
-      await new Promise(r=>setTimeout(r,2000*(i+1)));
+      const buf=await file.arrayBuffer();
+      const wb=XLSX.read(buf,{type:"array"});
+      const fileLower=file.name.toLowerCase();
+      const isEquipes=fileLower.includes("equipe")||fileLower.includes("équipe")||fileLower.includes("team");
+      const isCourses=fileLower.includes("course")||fileLower.includes("race");
+      const guessSheets=wb.SheetNames;
+
+      for(const sn of guessSheets){
+        const snLower=sn.toLowerCase();
+        const isHommes=snLower.includes("homme")||snLower.includes("men");
+        const isFemmes=snLower.includes("femme")||snLower.includes("women");
+        let targetList=null;
+        if(isEquipes && isHommes) targetList=TM;
+        else if(isEquipes && isFemmes) targetList=TW;
+        else if(isCourses && isHommes) targetList=RM;
+        else if(isCourses && isFemmes) targetList=RW;
+        if(!targetList){
+          log(`  ⚠️  feuille "${sn}" ignorée`,"#f59e0b");
+          continue;
+        }
+        const n=parseSheetIntoDt(wb.Sheets[sn], targetList);
+        log(`  ✅ ${sn} → ${n} valeurs importées`,"#22c55e");
+        totalImported+=n;
+      }
+      filesProcessed++;
+    }catch(err){
+      log(`  ❌ Erreur : ${err.message}`,"#ef4444");
     }
   }
-}
 
-function getAllFbPages(){
-  const all=[...TM,...TW,...RM,...RW];
-  return [...new Set(all.map(e=>e.fb).filter(Boolean))];
-}
-function getAllXHandles(){
-  const all=[...TM,...TW,...RM,...RW];
-  return [...new Set(all.map(e=>e.x).filter(Boolean))];
-}
-
-function modalLog(msg,type){
-  const st=document.getElementById("modal-status");
-  if(!st)return;
-  st.classList.add("show");
-  const color=type==="ok"?"#22c55e":type==="err"?"#ef4444":type==="warn"?"#f59e0b":"var(--txm)";
-  st.innerHTML+=`<div style="color:${color}">${msg}</div>`;
-  st.scrollTop=st.scrollHeight;
-}
-
-function setProgress(pct){
-  const bar=document.getElementById("modal-progress");
-  const fill=document.getElementById("modal-progress-bar");
-  if(!bar||!fill)return;
-  bar.classList.add("show");
-  fill.style.width=pct+"%";
-}
-
-// ═══ LOCAL TRACKER SERVER (Instagram) ═══
-const LOCAL_SERVER_URL="http://127.0.0.1:8765";
-let _localServerOk=false;
-
-async function checkLocalServer(){
-  try{
-    const r=await fetch(LOCAL_SERVER_URL+"/status",{signal:AbortSignal.timeout(1500)});
-    if(!r.ok)return false;
-    const data=await r.json();
-    _localServerOk=data.status==="ok";
-    return _localServerOk;
-  }catch{_localServerOk=false;return false}
-}
-
-async function collectInstagram(){
-  if(_collecting)return;
-
-  // Check local tracker server
-  const available=await checkLocalServer();
-  if(!available){
-    modalLog("❌ Serveur local non détecté sur "+LOCAL_SERVER_URL,"err");
-    modalLog("👉 Lancez tracker_server.py sur votre PC avant de cliquer ici.","warn");
-    modalLog("   Voir scripts/README.md pour l'installation.","warn");
-    return;
-  }
-
-  _collecting=true;
-  const btn=document.getElementById("btn-ig");
-  if(btn){btn.disabled=true;btn.classList.add("collecting")}
-  const st=document.getElementById("modal-status");
-  if(st){st.innerHTML="";st.classList.add("show")}
-
-  modalLog("🚀 Déclenchement du tracker local Instagram (Playwright)...");
-  setProgress(3);
-
-  try{
-    // Step 1: Launch job on local server
-    const startResp=await fetch(LOCAL_SERVER_URL+"/scrape/instagram",{method:"POST"});
-    if(!startResp.ok){
-      const errText=await startResp.text();
-      throw new Error(`Serveur local a refusé (${startResp.status}): ${errText}`);
-    }
-    const {job_id}=await startResp.json();
-    modalLog(`✅ Job lancé (id: ${job_id})`);
-
-    // Step 2: Poll logs every second
-    let lastLogCount=0;
-    let polls=0;
-    while(true){
-      await new Promise(r=>setTimeout(r,1000));
-      polls++;
-      const r=await fetch(`${LOCAL_SERVER_URL}/jobs/${job_id}`);
-      if(!r.ok)throw new Error(`Perte de contact avec le serveur local (${r.status})`);
-      const job=await r.json();
-
-      // Affiche uniquement les nouvelles lignes
-      for(let i=lastLogCount;i<job.logs.length;i++){
-        const line=job.logs[i];
-        const type=line.includes("✅")||line.includes("🏁")?"ok"
-                 :line.includes("❌")?"err"
-                 :line.includes("⚠️")?"warn":null;
-        modalLog(line,type);
-      }
-      lastLogCount=job.logs.length;
-      // Progression approximative (90s total ≈ 90 polls)
-      setProgress(Math.min(3+polls*1.1,95));
-
-      if(job.done){
-        setProgress(100);
-        if(job.ok){
-          modalLog("✅ Tracker terminé avec succès","ok");
-          // Pull fresh data from gist (the tracker pushed there)
-          modalLog("☁️ Récupération depuis le Gist...");
-          const updated=await syncFromGist();
-          if(updated){
-            S.lastUpdate.ig=new Date().toISOString().split("T")[0];
-            saveToLS();
-            render();
-            modalLog("🔄 Dashboard mis à jour","ok");
-          }else{
-            modalLog("ℹ️ Gist déjà à jour localement","warn");
-          }
-        }else{
-          modalLog("❌ Le tracker a terminé avec une erreur — vérifiez la console Python","err");
-        }
-        break;
-      }
-
-      if(polls>300){ // 5 min safety
-        throw new Error("Timeout — le tracker met trop de temps");
-      }
-    }
-  }catch(err){
-    modalLog(`❌ Erreur: ${err.message}`,"err");
-  }finally{
-    _collecting=false;
-    if(btn){btn.disabled=false;btn.classList.remove("collecting")}
-  }
-}
-
-async function collectFacebook(){
-  if(_collecting)return;
-  const token=getApifyToken();
-  if(!token){
-    modalLog("❌ Clé API Apify manquante. Saisissez-la ci-dessus.","err");
-    document.getElementById("apify-token-input")?.focus();
-    return;
-  }
-  _collecting=true;
-  const btn=document.getElementById("btn-fb");
-  if(btn){btn.disabled=true;btn.classList.add("collecting")}
-  const st=document.getElementById("modal-status");
-  if(st){st.innerHTML="";st.classList.add("show")}
-
-  const fbPages=getAllFbPages();
-  modalLog(`🚀 Lancement de la collecte Facebook — ${fbPages.length} pages...`);
-  setProgress(5);
-
-  try{
-    modalLog("⏳ Démarrage de l'actor Apify (Facebook Pages Scraper)...");
-    const startResp=await fetchRetry(
-      `https://api.apify.com/v2/acts/apify~facebook-pages-scraper/runs?token=${token}`,
-      {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-        startUrls:fbPages.map(p=>({url:`https://www.facebook.com/${p}/`})),
-        scrapePosts:false,
-        scrapeAbout:true,
-        scrapeReviews:false,
-        scrapeServices:false
-      })}
-    );
-    if(!startResp.ok){
-      const errText=await startResp.text();
-      throw new Error(`Erreur Apify (${startResp.status}): ${errText}`);
-    }
-    const runData=await startResp.json();
-    const runId=runData.data.id;
-    modalLog(`✅ Actor lancé (run: ${runId.substring(0,8)}...)`);
-    setProgress(15);
-
-    modalLog("⏳ Collecte en cours...");
-    let status="RUNNING";
-    let polls=0;
-    const maxPolls=180;
-    while(status==="RUNNING"||status==="READY"){
-      await new Promise(r=>setTimeout(r,5000));
-      polls++;
-      if(polls>maxPolls)throw new Error("Timeout — la collecte prend trop de temps");
-      const pollResp=await fetchRetry(`https://api.apify.com/v2/actor-runs/${runId}?token=${token}`);
-      if(!pollResp.ok)throw new Error(`Erreur polling (${pollResp.status})`);
-      const pollData=await pollResp.json();
-      status=pollData.data.status;
-      const pct=Math.min(15+polls*1.2,85);
-      setProgress(pct);
-      if(polls%6===0)modalLog(`⏳ En cours... (${Math.round(pct)}%)`);
-    }
-
-    if(status!=="SUCCEEDED"){
-      throw new Error(`L'actor a terminé avec le statut: ${status}`);
-    }
-    modalLog("✅ Collecte terminée !");
-    setProgress(90);
-
-    modalLog("📥 Récupération des résultats...");
-    const dataResp=await fetchRetry(
-      `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${token}`
-    );
-    if(!dataResp.ok)throw new Error(`Erreur récupération données (${dataResp.status})`);
-    const results=await dataResp.json();
-    setProgress(95);
-
-    const now=new Date();
-    const monthKey=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"][now.getMonth()];
-    let ok=0,fail=0;
-
-    if(results.length>0){
-      const sample=results[0];
-      modalLog(`📋 Format reçu (${results.length} items) — champs: ${Object.keys(sample).join(", ")}`);
-      modalLog(`📋 Exemple: ${JSON.stringify(sample).substring(0,200)}...`);
-    }
-
-    // Build FB lookup: lowercase slug -> entities
-    const fbMap={};
-    for(const list of[TM,TW,RM,RW]){
-      for(const e of list){
-        if(e.fb){
-          const key=e.fb.toLowerCase();
-          if(!fbMap[key])fbMap[key]=[];
-          fbMap[key].push(e);
-        }
-      }
-    }
-
-    for(const item of results){
-      // Extract page slug from URL or fields
-      let slug="";
-      const pageUrl=item.url||item.pageUrl||item.facebookUrl||item.inputUrl||"";
-      if(pageUrl){
-        slug=pageUrl.replace(/https?:\/\/(www\.|m\.)?facebook\.com\//gi,"").replace(/\/.*$/,"").toLowerCase();
-      }
-      if(!slug){
-        slug=(item.pageName||item.title||item.name||"").toLowerCase().replace(/\s+/g,"");
-      }
-
-      // Extract followers/likes
-      let followers=null;
-      for(const f of["followers","followersCount","followerCount","likes","likesCount"]){
-        if(item[f]!=null&&typeof item[f]==="number"){
-          followers=item[f];
-          break;
-        }
-      }
-
-      if(!slug){fail++;continue}
-
-      const matched=fbMap[slug];
-      if(matched&&followers!=null){
-        for(const e of matched){
-          const k=e.n+"|"+(e.cl||e.co);
-          if(!S.dt[k])S.dt[k]={};
-          if(!S.dt[k][monthKey])S.dt[k][monthKey]={};
-          S.dt[k][monthKey].fb=followers;
-          ok++;
-        }
-      } else if(followers==null){
-        fail++;
-        if(results.length<=30)modalLog(`⚠️ ${slug}: pas de followers trouvé`,"warn");
-      } else {
-        fail++;
-        if(results.length<=30)modalLog(`⚠️ ${slug}: non trouvé dans le dashboard`,"warn");
-      }
-    }
-
-    setProgress(100);
-    modalLog(`🏁 Import terminé : ${ok} entrées mises à jour, ${fail} échecs`,"ok");
-    S.lastUpdate.fb=now.toISOString().split("T")[0];
-    S.imports.push(now.toISOString().split("T")[0]+" (Facebook via Apify — "+ok+" comptes)");
+  if(totalImported>0){
+    S.lastImport=new Date().toISOString().split("T")[0];
     saveToLS();
-    syncToGist().then(ok=>{if(ok)modalLog("☁️ Synchronisé sur GitHub Gist","ok")});
     render();
-
-  }catch(err){
-    modalLog(`❌ Erreur: ${err.message}`,"err");
-  }finally{
-    _collecting=false;
-    if(btn){btn.disabled=false;btn.classList.remove("collecting")}
+    log(`🏁 Import terminé : ${totalImported} valeurs depuis ${filesProcessed} fichier(s)`,"#22c55e");
+  }else{
+    log("⚠️ Aucune donnée importée — vérifiez le format des fichiers","#f59e0b");
   }
-}
-
-async function collectX(){
-  if(_collecting)return;
-  const token=getApifyToken();
-  if(!token){
-    modalLog("❌ Clé API Apify manquante. Saisissez-la ci-dessus.","err");
-    document.getElementById("apify-token-input")?.focus();
-    return;
-  }
-  _collecting=true;
-  const btn=document.getElementById("btn-x");
-  if(btn){btn.disabled=true;btn.classList.add("collecting")}
-  const st=document.getElementById("modal-status");
-  if(st){st.innerHTML="";st.classList.add("show")}
-
-  const xHandles=getAllXHandles();
-  modalLog(`🚀 Lancement de la collecte X (Twitter) — ${xHandles.length} comptes...`);
-  setProgress(5);
-
-  try{
-    modalLog("⏳ Démarrage de l'actor Apify (Premium X User Scraper)...");
-    const startResp=await fetchRetry(
-      `https://api.apify.com/v2/acts/kaitoeasyapi~premium-twitter-user-scraper-pay-per-result/runs?token=${token}`,
-      {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-        user_names:xHandles
-      })}
-    );
-    if(!startResp.ok){
-      const errText=await startResp.text();
-      throw new Error(`Erreur Apify (${startResp.status}): ${errText}`);
-    }
-    const runData=await startResp.json();
-    const runId=runData.data.id;
-    modalLog(`✅ Actor lancé (run: ${runId.substring(0,8)}...)`);
-    setProgress(15);
-
-    modalLog("⏳ Collecte en cours...");
-    let status="RUNNING";
-    let polls=0;
-    const maxPolls=180;
-    while(status==="RUNNING"||status==="READY"){
-      await new Promise(r=>setTimeout(r,5000));
-      polls++;
-      if(polls>maxPolls)throw new Error("Timeout — la collecte prend trop de temps");
-      const pollResp=await fetchRetry(`https://api.apify.com/v2/actor-runs/${runId}?token=${token}`);
-      if(!pollResp.ok)throw new Error(`Erreur polling (${pollResp.status})`);
-      const pollData=await pollResp.json();
-      status=pollData.data.status;
-      const pct=Math.min(15+polls*1.2,85);
-      setProgress(pct);
-      if(polls%6===0)modalLog(`⏳ En cours... (${Math.round(pct)}%)`);
-    }
-
-    if(status!=="SUCCEEDED"){
-      throw new Error(`L'actor a terminé avec le statut: ${status}`);
-    }
-    modalLog("✅ Collecte terminée !");
-    setProgress(90);
-
-    modalLog("📥 Récupération des résultats...");
-    const dataResp=await fetchRetry(
-      `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${token}`
-    );
-    if(!dataResp.ok)throw new Error(`Erreur récupération données (${dataResp.status})`);
-    const results=await dataResp.json();
-    setProgress(95);
-
-    const now=new Date();
-    const monthKey=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"][now.getMonth()];
-    let ok=0,fail=0;
-
-    if(results.length>0){
-      const sample=results[0];
-      modalLog(`📋 Format reçu (${results.length} items) — champs: ${Object.keys(sample).join(", ")}`);
-      // Deep debug: show structure of key nested objects
-      if(sample.core) modalLog(`🔍 core: ${JSON.stringify(sample.core).substring(0,400)}`);
-      if(sample.relationship_counts) modalLog(`🔍 relationship_counts: ${JSON.stringify(sample.relationship_counts).substring(0,400)}`);
-      if(sample.properties) modalLog(`🔍 properties: ${JSON.stringify(sample.properties).substring(0,400)}`);
-      if(sample.profile_bio) modalLog(`🔍 profile_bio: ${JSON.stringify(sample.profile_bio).substring(0,300)}`);
-      modalLog(`🔍 rest_id: ${sample.rest_id}`);
-    }
-
-    // Build X lookup: lowercase handle -> entities
-    const xMap={};
-    for(const list of[TM,TW,RM,RW]){
-      for(const e of list){
-        if(e.x){
-          const key=e.x.toLowerCase();
-          if(!xMap[key])xMap[key]=[];
-          xMap[key].push(e);
-        }
-      }
-    }
-
-    // Deep search helper: find a value by key name recursively (max depth 5)
-    function deepFind(obj,key,depth=0){
-      if(!obj||typeof obj!=="object"||depth>5)return undefined;
-      if(obj[key]!==undefined)return obj[key];
-      for(const k of Object.keys(obj)){
-        const v=deepFind(obj[k],key,depth+1);
-        if(v!==undefined)return v;
-      }
-      return undefined;
-    }
-
-    for(const item of results){
-      // Try multiple paths for handle extraction
-      let handle="";
-      // Direct fields
-      handle=item.screen_name||item.username||item.userName||item.handle||"";
-      // Nested in core (various possible structures)
-      if(!handle){
-        const core=item.core||{};
-        handle=core.screen_name||core.username||core.userName||"";
-        // Twitter API nests under core.user_results.result.legacy
-        if(!handle&&core.user_results?.result?.legacy){
-          handle=core.user_results.result.legacy.screen_name||"";
-        }
-      }
-      // Nested in properties
-      if(!handle){
-        const props=item.properties||{};
-        handle=props.screen_name||props.username||props.userName||"";
-      }
-      // Deep recursive search as last resort
-      if(!handle){
-        handle=deepFind(item,"screen_name")||deepFind(item,"username")||"";
-      }
-      if(!handle){
-        const url=item.url||item.profileUrl||item.inputUrl||"";
-        if(url)handle=url.replace(/https?:\/\/(www\.)?(twitter\.com|x\.com)\//gi,"").replace(/\/.*$/,"").replace(/^@/,"");
-      }
-      handle=String(handle).toLowerCase().trim();
-
-      let followers=null;
-      // Direct on item
-      if(typeof item.followers_count==="number") followers=item.followers_count;
-      // In relationship_counts
-      if(followers==null){
-        const rc=item.relationship_counts||{};
-        followers=rc.followers_count??rc.followers??null;
-        if(followers!=null&&typeof followers!=="number") followers=null;
-      }
-      // Deep search
-      if(followers==null){
-        const fc=deepFind(item,"followers_count");
-        if(typeof fc==="number") followers=fc;
-      }
-      if(followers==null){
-        const fc=deepFind(item,"normal_followers_count");
-        if(typeof fc==="number") followers=fc;
-      }
-
-      if(!handle){fail++;continue}
-
-      const matched=xMap[handle];
-      if(matched&&followers!=null){
-        for(const e of matched){
-          const k=e.n+"|"+(e.cl||e.co);
-          if(!S.dt[k])S.dt[k]={};
-          if(!S.dt[k][monthKey])S.dt[k][monthKey]={};
-          S.dt[k][monthKey].x=followers;
-          ok++;
-        }
-      } else if(followers==null){
-        fail++;
-        if(results.length<=30)modalLog(`⚠️ @${handle}: pas de followers trouvé`,"warn");
-      } else {
-        fail++;
-        if(results.length<=30)modalLog(`⚠️ @${handle}: non trouvé dans le dashboard`,"warn");
-      }
-    }
-
-    setProgress(100);
-    modalLog(`🏁 Import terminé : ${ok} entrées mises à jour, ${fail} échecs`,"ok");
-    S.lastUpdate.x=now.toISOString().split("T")[0];
-    S.imports.push(now.toISOString().split("T")[0]+" (X via Apify — "+ok+" comptes)");
-    saveToLS();
-    syncToGist().then(ok=>{if(ok)modalLog("☁️ Synchronisé sur GitHub Gist","ok")});
-    render();
-
-  }catch(err){
-    modalLog(`❌ Erreur: ${err.message}`,"err");
-  }finally{
-    _collecting=false;
-    if(btn){btn.disabled=false;btn.classList.remove("collecting")}
-  }
-}
-
-function fmtLastUpdate(dateStr){
-  if(!dateStr)return '<span style="color:var(--txm)">— jamais actualisé</span>';
-  const d=new Date(dateStr);
-  const mois=["janv.","fév.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
-  const today=new Date();
-  const sameMonth=d.getMonth()===today.getMonth()&&d.getFullYear()===today.getFullYear();
-  const label=d.getDate()+" "+mois[d.getMonth()]+" "+d.getFullYear();
-  const dot='<span style="display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;vertical-align:middle;';
-  if(sameMonth) return dot+'background:#22c55e"></span><span style="color:#22c55e">À jour · '+label+'</span>';
-  return dot+'background:#f59e0b"></span><span style="color:#f59e0b">'+label+'</span>';
 }
 
 function openUpdateModal(){
@@ -971,83 +478,30 @@ function openUpdateModal(){
   <div class="modal-overlay" onclick="if(event.target===this)closeUpdateModal()">
     <div class="modal" style="position:relative">
       <button class="modal-close" onclick="closeUpdateModal()">✕</button>
-      <div class="modal-title">Actualiser les données</div>
-      <div class="modal-sub">Saisissez votre clé API Apify puis cliquez sur un réseau social pour collecter les followers.</div>
-      <div style="margin-bottom:20px">
-        <div style="font-size:9px;color:var(--txm);text-transform:uppercase;letter-spacing:.12em;font-weight:600;margin-bottom:6px">Clé API Apify</div>
-        <div style="display:flex;gap:6px;align-items:center">
-          <input type="password" id="apify-token-input" placeholder="apify_api_..." value="${getApifyToken()}"
-            style="flex:1;padding:10px 12px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:11px;font-family:var(--num);outline:none"
-            onfocus="this.style.borderColor='var(--ac)'" onblur="this.style.borderColor='var(--bd)'"
-            onchange="setApifyToken(this.value)">
-          <button class="btn btn-sm" onclick="const i=document.getElementById('apify-token-input');i.type=i.type==='password'?'text':'password'">Voir</button>
-        </div>
-        <div style="font-size:9px;color:var(--txm);margin-top:6px;letter-spacing:.04em">Stockée localement dans votre navigateur</div>
+      <div class="modal-title">Importer les données</div>
+      <div class="modal-sub">Sélectionnez les 2 fichiers Excel générés par <code style="font-family:var(--num)">scrape_to_excel.py</code> (<strong>uci_equipes.xlsx</strong> et <strong>uci_courses.xlsx</strong>).</div>
+      <div style="margin-bottom:18px">
+        <label for="xlsx-input" class="btn btn-primary" style="display:block;text-align:center;padding:14px;cursor:pointer">
+          Choisir les fichiers Excel…
+        </label>
+        <input type="file" id="xlsx-input" accept=".xlsx" multiple style="display:none" onchange="handleExcelFiles(this.files)">
+        <div style="font-size:9px;color:var(--txm);margin-top:8px;line-height:1.5">Vous pouvez sélectionner plusieurs fichiers en une fois (Ctrl+clic dans le sélecteur). Les fichiers peuvent être stockés sur votre partage réseau ASO.</div>
       </div>
-      <div style="margin-bottom:20px">
-        <div style="font-size:9px;color:var(--txm);text-transform:uppercase;letter-spacing:.12em;font-weight:600;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between">
-          <span>Sync GitHub Gist <span style="color:var(--txd);font-weight:500;text-transform:none;letter-spacing:0">(public)</span></span>
-          <span style="font-family:var(--num);font-weight:500;text-transform:none;letter-spacing:0;color:${getGistId()?'#22c55e':'var(--txm)'}">${getGistId()?'● lié — '+getGistId().substring(0,8):'○ non configuré'}</span>
-        </div>
-        <div style="display:flex;gap:6px;align-items:center">
-          <input type="password" id="gh-token-input" placeholder="github_pat_... (scope: gist) — uniquement pour collecter" value="${getGhToken()}"
-            style="flex:1;padding:10px 12px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:11px;font-family:var(--num);outline:none"
-            onfocus="this.style.borderColor='var(--ac)'" onblur="this.style.borderColor='var(--bd)'"
-            onchange="setGhToken(this.value)">
-          <button class="btn btn-sm" onclick="const i=document.getElementById('gh-token-input');i.type=i.type==='password'?'text':'password'">Voir</button>
-          <button class="btn btn-sm" onclick="manualSyncFromGist()" title="Récupérer depuis Gist">↓ Pull</button>
-        </div>
-        <div style="font-size:9px;color:var(--txm);margin-top:6px;letter-spacing:.04em;line-height:1.5">Le Gist est créé en <strong>public</strong> pour que tout le monde lise les données sans authentification. Le PAT n'est nécessaire que pour <strong>écrire</strong> (collecter). Vos collègues n'ont rien à configurer — leur dashboard récupère automatiquement les données.</div>
+      <div id="import-log" style="font-family:var(--num);font-size:10px;line-height:1.6;max-height:220px;overflow-y:auto;background:var(--bg);border:1px solid var(--bd);padding:12px"></div>
+      <div style="margin-top:14px;font-size:9px;color:var(--txm);letter-spacing:.04em;text-transform:uppercase;font-weight:600">
+        ${S.lastImport?"Dernier import : "+S.lastImport:"Aucun import pour le moment"}
       </div>
-      <div class="modal-grid">
-        <button class="modal-btn" id="btn-ig" onclick="collectInstagram()" title="Nécessite tracker_server.py en local">
-          <span class="mbico" style="background:#E1306C;color:#fff">${SOC_ICONS.Instagram}</span>
-          Instagram
-          <span class="modal-btn-date" id="ig-server-status">${fmtLastUpdate(S.lastUpdate.ig)}</span>
-        </button>
-        <button class="modal-btn" id="btn-fb" onclick="collectFacebook()">
-          <span class="mbico" style="background:#1877F2;color:#fff">${SOC_ICONS.Facebook}</span>
-          Facebook
-          <span class="modal-btn-date">${fmtLastUpdate(S.lastUpdate.fb)}</span>
-        </button>
-        <button class="modal-btn" id="btn-x" onclick="collectX()">
-          <span class="mbico" style="background:#000;color:#fff">${SOC_ICONS.X}</span>
-          X (Twitter)
-          <span class="modal-btn-date">${fmtLastUpdate(S.lastUpdate.x)}</span>
-        </button>
-        <button class="modal-btn" disabled title="Bientôt disponible">
-          <span class="mbico" style="background:#000;color:#fff">${SOC_ICONS.TikTok}</span>
-          TikTok
-          <span class="modal-btn-date">${fmtLastUpdate(S.lastUpdate.tk)}</span>
-        </button>
-      </div>
-      <div class="modal-progress" id="modal-progress"><div class="modal-progress-bar" id="modal-progress-bar"></div></div>
-      <div class="modal-status" id="modal-status"></div>
     </div>
   </div>`;
-  // Auto-check local tracker server for the Instagram button
-  checkLocalServer().then(ok=>{
-    const el=document.getElementById("ig-server-status");
-    if(!el)return;
-    const dot='<span style="display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;vertical-align:middle;background:';
-    if(ok){
-      el.innerHTML=dot+'#22c55e"></span><span style="color:#22c55e">Serveur local détecté</span>';
-    }else{
-      el.innerHTML=dot+'#ef4444"></span><span style="color:#ef4444">Serveur local absent</span>';
-    }
-  });
 }
 
 function closeUpdateModal(){
-  if(_collecting){if(!confirm("Une collecte est en cours. Fermer quand même ?"))return}
   document.getElementById("modal-container").innerHTML="";
 }
 
 // Init
 loadFromLS();
 render();
-// Pull from Gist (if configured) and re-render if remote is newer
-syncFromGist().then(updated=>{if(updated)render()});
 </script>
 </body>
 </html>
