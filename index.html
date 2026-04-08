@@ -491,10 +491,6 @@ async function fetchRetry(url,opts={},retries=3){
   }
 }
 
-function getAllIgUsernames(){
-  const all=[...TM,...TW,...RM,...RW];
-  return [...new Set(all.map(e=>e.ig).filter(Boolean))];
-}
 function getAllFbPages(){
   const all=[...TM,...TW,...RM,...RW];
   return [...new Set(all.map(e=>e.fb).filter(Boolean))];
@@ -521,147 +517,98 @@ function setProgress(pct){
   fill.style.width=pct+"%";
 }
 
+// ═══ LOCAL TRACKER SERVER (Instagram) ═══
+const LOCAL_SERVER_URL="http://127.0.0.1:8765";
+let _localServerOk=false;
+
+async function checkLocalServer(){
+  try{
+    const r=await fetch(LOCAL_SERVER_URL+"/status",{signal:AbortSignal.timeout(1500)});
+    if(!r.ok)return false;
+    const data=await r.json();
+    _localServerOk=data.status==="ok";
+    return _localServerOk;
+  }catch{_localServerOk=false;return false}
+}
+
 async function collectInstagram(){
   if(_collecting)return;
-  const token=getApifyToken();
-  if(!token){
-    modalLog("❌ Clé API Apify manquante. Saisissez-la ci-dessus.","err");
-    document.getElementById("apify-token-input")?.focus();
+
+  // Check local tracker server
+  const available=await checkLocalServer();
+  if(!available){
+    modalLog("❌ Serveur local non détecté sur "+LOCAL_SERVER_URL,"err");
+    modalLog("👉 Lancez tracker_server.py sur votre PC avant de cliquer ici.","warn");
+    modalLog("   Voir scripts/README.md pour l'installation.","warn");
     return;
   }
+
   _collecting=true;
   const btn=document.getElementById("btn-ig");
   if(btn){btn.disabled=true;btn.classList.add("collecting")}
   const st=document.getElementById("modal-status");
   if(st){st.innerHTML="";st.classList.add("show")}
 
-  const usernames=getAllIgUsernames();
-  modalLog(`🚀 Lancement de la collecte Instagram — ${usernames.length} comptes...`);
-  setProgress(5);
+  modalLog("🚀 Déclenchement du tracker local Instagram (Playwright)...");
+  setProgress(3);
 
   try{
-    // Step 1: Start the Apify actor run
-    modalLog("⏳ Démarrage de l'actor Apify...");
-    const startResp=await fetchRetry(
-      `https://api.apify.com/v2/acts/apify~instagram-followers-count-scraper/runs?token=${token}`,
-      {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({usernames:usernames.map(u=>`https://www.instagram.com/${u}/`)})}
-    );
+    // Step 1: Launch job on local server
+    const startResp=await fetch(LOCAL_SERVER_URL+"/scrape/instagram",{method:"POST"});
     if(!startResp.ok){
       const errText=await startResp.text();
-      throw new Error(`Erreur Apify (${startResp.status}): ${errText}`);
+      throw new Error(`Serveur local a refusé (${startResp.status}): ${errText}`);
     }
-    const runData=await startResp.json();
-    const runId=runData.data.id;
-    modalLog(`✅ Actor lancé (run: ${runId.substring(0,8)}...)`);
-    setProgress(15);
+    const {job_id}=await startResp.json();
+    modalLog(`✅ Job lancé (id: ${job_id})`);
 
-    // Step 2: Poll for completion
-    modalLog("⏳ Collecte en cours...");
-    let status="RUNNING";
+    // Step 2: Poll logs every second
+    let lastLogCount=0;
     let polls=0;
-    const maxPolls=120; // max ~10 min
-    while(status==="RUNNING"||status==="READY"){
-      await new Promise(r=>setTimeout(r,5000));
+    while(true){
+      await new Promise(r=>setTimeout(r,1000));
       polls++;
-      if(polls>maxPolls)throw new Error("Timeout — la collecte prend trop de temps");
-      const pollResp=await fetchRetry(`https://api.apify.com/v2/actor-runs/${runId}?token=${token}`);
-      if(!pollResp.ok)throw new Error(`Erreur polling (${pollResp.status})`);
-      const pollData=await pollResp.json();
-      status=pollData.data.status;
-      const pct=Math.min(15+polls*1.5,85);
-      setProgress(pct);
-      if(polls%6===0)modalLog(`⏳ En cours... (${Math.round(pct)}%)`);
-    }
+      const r=await fetch(`${LOCAL_SERVER_URL}/jobs/${job_id}`);
+      if(!r.ok)throw new Error(`Perte de contact avec le serveur local (${r.status})`);
+      const job=await r.json();
 
-    if(status!=="SUCCEEDED"){
-      throw new Error(`L'actor a terminé avec le statut: ${status}`);
-    }
-    modalLog("✅ Collecte terminée !");
-    setProgress(90);
+      // Affiche uniquement les nouvelles lignes
+      for(let i=lastLogCount;i<job.logs.length;i++){
+        const line=job.logs[i];
+        const type=line.includes("✅")||line.includes("🏁")?"ok"
+                 :line.includes("❌")?"err"
+                 :line.includes("⚠️")?"warn":null;
+        modalLog(line,type);
+      }
+      lastLogCount=job.logs.length;
+      // Progression approximative (90s total ≈ 90 polls)
+      setProgress(Math.min(3+polls*1.1,95));
 
-    // Step 3: Get dataset results
-    modalLog("📥 Récupération des résultats...");
-    const dataResp=await fetchRetry(
-      `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${token}`
-    );
-    if(!dataResp.ok)throw new Error(`Erreur récupération données (${dataResp.status})`);
-    const results=await dataResp.json();
-    setProgress(95);
-
-    // Step 4: Import into dashboard
-    const now=new Date();
-    const monthKey=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"][now.getMonth()];
-    let ok=0,fail=0;
-
-    // Debug: log first item to see actual field names
-    if(results.length>0){
-      const sample=results[0];
-      const keys=Object.keys(sample);
-      modalLog(`📋 Format reçu (${results.length} items) — champs: ${keys.join(", ")}`);
-      modalLog(`📋 Exemple: ${JSON.stringify(sample).substring(0,200)}...`);
-    }
-
-    // Build a lookup map: lowercase ig username -> list of entities
-    const igMap={};
-    for(const list of[TM,TW,RM,RW]){
-      for(const e of list){
-        if(e.ig){
-          const key=e.ig.toLowerCase();
-          if(!igMap[key])igMap[key]=[];
-          igMap[key].push(e);
+      if(job.done){
+        setProgress(100);
+        if(job.ok){
+          modalLog("✅ Tracker terminé avec succès","ok");
+          // Pull fresh data from gist (the tracker pushed there)
+          modalLog("☁️ Récupération depuis le Gist...");
+          const updated=await syncFromGist();
+          if(updated){
+            S.lastUpdate.ig=new Date().toISOString().split("T")[0];
+            saveToLS();
+            render();
+            modalLog("🔄 Dashboard mis à jour","ok");
+          }else{
+            modalLog("ℹ️ Gist déjà à jour localement","warn");
+          }
+        }else{
+          modalLog("❌ Le tracker a terminé avec une erreur — vérifiez la console Python","err");
         }
+        break;
+      }
+
+      if(polls>300){ // 5 min safety
+        throw new Error("Timeout — le tracker met trop de temps");
       }
     }
-
-    for(const item of results){
-      // Extract username — Apify returns "userName" (camelCase)
-      let username=item.userName||item.username||item.profileName||item.handle||item.name||"";
-      // If it's a URL, extract username from it
-      if(!username&&(item.userUrl||item.inputUrl||item.url)){
-        username=(item.userUrl||item.inputUrl||item.url);
-      }
-      // Clean: remove URL parts, @, trailing slashes
-      if(typeof username==="string"){
-        username=username.replace(/https?:\/\/(www\.)?instagram\.com\//gi,"").replace(/\/.*$/,"").replace(/^@/,"").trim().toLowerCase();
-      }
-
-      // Try every possible field name for follower count
-      let followers=null;
-      for(const f of["followersCount","followers","followerCount","edge_followed_by","subscribersCount","followedBy","follower_count"]){
-        if(item[f]!=null){
-          followers=typeof item[f]==="object"?item[f].count:item[f];
-          break;
-        }
-      }
-
-      if(!username){fail++;continue}
-
-      const matched=igMap[username];
-      if(matched&&followers!=null){
-        for(const e of matched){
-          const k=e.n+"|"+(e.cl||e.co);
-          if(!S.dt[k])S.dt[k]={};
-          if(!S.dt[k][monthKey])S.dt[k][monthKey]={};
-          S.dt[k][monthKey].ig=followers;
-          ok++;
-        }
-      } else if(followers==null){
-        fail++;
-        if(results.length<=20)modalLog(`⚠️ @${username}: pas de followers trouvé`,"warn");
-      } else {
-        fail++;
-        if(results.length<=20)modalLog(`⚠️ @${username}: non trouvé dans le dashboard`,"warn");
-      }
-    }
-
-    setProgress(100);
-    modalLog(`🏁 Import terminé : ${ok} entrées mises à jour, ${fail} échecs`,"ok");
-    S.lastUpdate.ig=now.toISOString().split("T")[0];
-    S.imports.push(now.toISOString().split("T")[0]+" (Instagram via Apify — "+ok+" comptes)");
-    saveToLS();
-    syncToGist().then(ok=>{if(ok)modalLog("☁️ Synchronisé sur GitHub Gist","ok")});
-    render();
-
   }catch(err){
     modalLog(`❌ Erreur: ${err.message}`,"err");
   }finally{
@@ -1053,10 +1000,10 @@ function openUpdateModal(){
         <div style="font-size:9px;color:var(--txm);margin-top:6px;letter-spacing:.04em;line-height:1.5">Le Gist est créé en <strong>public</strong> pour que tout le monde lise les données sans authentification. Le PAT n'est nécessaire que pour <strong>écrire</strong> (collecter). Vos collègues n'ont rien à configurer — leur dashboard récupère automatiquement les données.</div>
       </div>
       <div class="modal-grid">
-        <button class="modal-btn" id="btn-ig" onclick="collectInstagram()">
+        <button class="modal-btn" id="btn-ig" onclick="collectInstagram()" title="Nécessite tracker_server.py en local">
           <span class="mbico" style="background:#E1306C;color:#fff">${SOC_ICONS.Instagram}</span>
           Instagram
-          <span class="modal-btn-date">${fmtLastUpdate(S.lastUpdate.ig)}</span>
+          <span class="modal-btn-date" id="ig-server-status">${fmtLastUpdate(S.lastUpdate.ig)}</span>
         </button>
         <button class="modal-btn" id="btn-fb" onclick="collectFacebook()">
           <span class="mbico" style="background:#1877F2;color:#fff">${SOC_ICONS.Facebook}</span>
@@ -1078,6 +1025,17 @@ function openUpdateModal(){
       <div class="modal-status" id="modal-status"></div>
     </div>
   </div>`;
+  // Auto-check local tracker server for the Instagram button
+  checkLocalServer().then(ok=>{
+    const el=document.getElementById("ig-server-status");
+    if(!el)return;
+    const dot='<span style="display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;vertical-align:middle;background:';
+    if(ok){
+      el.innerHTML=dot+'#22c55e"></span><span style="color:#22c55e">Serveur local détecté</span>';
+    }else{
+      el.innerHTML=dot+'#ef4444"></span><span style="color:#ef4444">Serveur local absent</span>';
+    }
+  });
 }
 
 function closeUpdateModal(){

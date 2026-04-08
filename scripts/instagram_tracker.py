@@ -211,38 +211,63 @@ def parse_count(text):
 
 def scrape_instagram(page, username):
     """
-    Scrape le nombre de followers d'un compte Instagram.
-    Stratégie : lecture de la balise <meta property="og:description">
-    qui contient un texte du type "6.5M Followers, 123 Following, 456 Posts".
+    Scrape le nombre EXACT de followers d'un compte Instagram.
+
+    Stratégies (en ordre de priorité, toutes renvoient un nombre exact) :
+      1. Pattern JSON "edge_followed_by":{"count":N} — structure GraphQL interne
+      2. Pattern JSON "follower_count":N — API mobile/web
+      3. Pattern JSON-LD "userInteractionCount":"N" — structured data
+      4. Hover sur le lien /followers/ + lecture de l'attribut title
+
+    Si AUCUNE stratégie exacte ne fonctionne, retourne None (pas d'arrondi).
     """
     url = f"https://www.instagram.com/{username}/"
     try:
         page.goto(url, wait_until="domcontentloaded", timeout=30000)
-        # Laisse le JS hydrater la meta
-        page.wait_for_timeout(1200)
+        page.wait_for_timeout(1500)
 
-        # 1. Meta og:description
-        meta = page.query_selector('meta[property="og:description"]')
-        if meta:
-            content = meta.get_attribute("content") or ""
-            m = FOLLOWER_REGEX.search(content)
-            if m:
-                return parse_count(m.group(1))
-
-        # 2. Meta description (fallback)
-        meta = page.query_selector('meta[name="description"]')
-        if meta:
-            content = meta.get_attribute("content") or ""
-            m = FOLLOWER_REGEX.search(content)
-            if m:
-                return parse_count(m.group(1))
-
-        # 3. Parsing du HTML complet (dernière chance)
         html = page.content()
-        m = FOLLOWER_REGEX.search(html)
-        if m:
-            return parse_count(m.group(1))
 
+        # Stratégie 1 — edge_followed_by (GraphQL interne)
+        m = re.search(r'"edge_followed_by"\s*:\s*\{\s*"count"\s*:\s*(\d+)', html)
+        if m:
+            return int(m.group(1))
+
+        # Stratégie 2 — follower_count (API v1)
+        m = re.search(r'"follower_count"\s*:\s*(\d+)', html)
+        if m:
+            return int(m.group(1))
+
+        # Stratégie 3 — JSON-LD userInteractionCount
+        m = re.search(r'"userInteractionCount"\s*:\s*"(\d+)"', html)
+        if m:
+            return int(m.group(1))
+
+        # Stratégie 4 — hover sur le lien vers /followers/ pour révéler
+        # l'attribut title qui contient souvent le nombre exact
+        try:
+            link = page.query_selector(f'a[href="/{username}/followers/"]')
+            if not link:
+                link = page.query_selector('a[href$="/followers/"]')
+            if link:
+                title = link.get_attribute("title")
+                if title:
+                    # Ex: "6,523,456" ou "6 523 456"
+                    digits = re.sub(r"[^\d]", "", title)
+                    if digits:
+                        return int(digits)
+                # Certains profils mettent le nombre dans un span enfant
+                span = link.query_selector("span[title]")
+                if span:
+                    title = span.get_attribute("title")
+                    if title:
+                        digits = re.sub(r"[^\d]", "", title)
+                        if digits:
+                            return int(digits)
+        except Exception:
+            pass
+
+        # Aucune méthode exacte n'a fonctionné — on refuse d'arrondir
         return None
 
     except Exception as e:
